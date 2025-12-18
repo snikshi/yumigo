@@ -1,72 +1,122 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useCart } from '../context/CartContext'; // Import the Brain
+import { useCart } from '../context/CartContext';
 import { Ionicons } from '@expo/vector-icons';
+// 👇 Import Stripe Hook
+import { useStripe } from '@stripe/stripe-react-native';
 
-export default function CartScreen() {
+export default function CartScreen({ navigation }) {
   const { cart, removeFromCart, totalPrice } = useCart();
+  
+  // 👇 Get Stripe Tools
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const [loading, setLoading] = useState(false);
 
-  // If cart is empty, show a nice message
-  if (cart.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="cart-outline" size={80} color="gray" />
-        <Text style={styles.emptyText}>Your cart is empty!</Text>
-      </View>
-    );
-  }
+  // 👇 THE PAYMENT FUNCTION
+  const onCheckout = async () => {
+    setLoading(true);
+    try {
+      // 1. Ask YOUR Server for permission (Payment Intent)
+      // Make sure this IP (192.168.1.13) is correct!
+      const response = await fetch('http://192.168.1.13:5000/api/payment/intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        Alert.alert("Error", data.error || "Server error");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Initialize the Payment Sheet
+      const initResponse = await initPaymentSheet({
+        merchantDisplayName: 'Yumigo Food',
+        paymentIntentClientSecret: data.paymentIntent, // The secret from server
+        defaultBillingDetails: {
+            name: 'Test User'
+        }
+      });
+
+      if (initResponse.error) {
+        Alert.alert("Error", initResponse.error.message);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Show the Payment Sheet to User
+      const paymentResponse = await presentPaymentSheet();
+
+      if (paymentResponse.error) {
+        Alert.alert("Payment failed", paymentResponse.error.message);
+      } else {
+        Alert.alert("Success!", "Order Confirmed! 🍔");
+        // Optional: Clear cart here
+      }
+
+    } catch (error) {
+      console.log(error);
+      Alert.alert("Error", "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Your Order 🍔</Text>
-
-      {/* List of Items */}
-      <FlatList
-        data={cart}
-        keyExtractor={(item, index) => index.toString()} // simple key
-        renderItem={({ item }) => (
-          <View style={styles.itemRow}>
-            <View>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-            </View>
-            <TouchableOpacity onPress={() => removeFromCart(item.id)}>
-                <Ionicons name="trash-outline" size={24} color="red" />
+      <Text style={styles.title}>Your Order 🍔</Text>
+      
+      {cart.length === 0 ? (
+        <Text style={styles.emptyText}>Cart is empty</Text>
+      ) : (
+        <>
+          <FlatList
+            data={cart}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.cartItem}>
+                <View>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.itemPrice}>₹{item.price}</Text>
+                </View>
+                <TouchableOpacity onPress={() => removeFromCart(item.id)}>
+                  <Ionicons name="trash" size={24} color="red" />
+                </TouchableOpacity>
+              </View>
+            )}
+          />
+          
+          <View style={styles.footer}>
+            <Text style={styles.totalText}>Total: ₹{totalPrice}</Text>
+            
+            {/* 👇 THE PAY BUTTON */}
+            <TouchableOpacity 
+                style={styles.checkoutButton} 
+                onPress={onCheckout}
+                disabled={loading}
+            >
+              <Text style={styles.checkoutText}>
+                {loading ? "Processing..." : "PAY NOW"}
+              </Text>
             </TouchableOpacity>
           </View>
-        )}
-      />
-
-      {/* Total & Checkout Button */}
-      <View style={styles.footer}>
-        <View style={styles.totalRow}>
-            <Text style={styles.totalText}>Total:</Text>
-            <Text style={styles.totalPrice}>${totalPrice.toFixed(2)}</Text>
-        </View>
-        
-        <TouchableOpacity 
-            style={styles.checkoutButton}
-            onPress={() => Alert.alert("Success", "Order sent to backend! (Coming soon)")}
-        >
-            <Text style={styles.checkoutText}>PLACE ORDER</Text>
-        </TouchableOpacity>
-      </View>
+        </>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 20, paddingTop: 50 },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
-  emptyText: { fontSize: 20, color: 'gray', marginTop: 10 },
-  header: { fontSize: 28, fontWeight: 'bold', marginBottom: 20 },
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  itemName: { fontSize: 18, fontWeight: '500' },
-  itemPrice: { color: 'gray' },
-  footer: { marginTop: 20, borderTopWidth: 2, borderTopColor: '#eee', paddingTop: 20 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  totalText: { fontSize: 22, fontWeight: 'bold' },
-  totalPrice: { fontSize: 22, fontWeight: 'bold', color: 'green' },
-  checkoutButton: { backgroundColor: '#FF4B3A', padding: 15, borderRadius: 30, alignItems: 'center' },
-  checkoutText: { color: 'white', fontSize: 18, fontWeight: 'bold' }
+  container: { flex: 1, padding: 20, backgroundColor: '#f8f8f8', paddingTop: 50 },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 20 },
+  emptyText: { fontSize: 18, color: 'gray', textAlign: 'center', marginTop: 50 },
+  cartItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10 },
+  itemName: { fontSize: 18, fontWeight: 'bold' },
+  itemPrice: { fontSize: 16, color: 'green' },
+  footer: { marginTop: 20, borderTopWidth: 1, borderColor: '#ddd', paddingTop: 20 },
+  totalText: { fontSize: 24, fontWeight: 'bold', textAlign: 'right', marginBottom: 15 },
+  checkoutButton: { backgroundColor: '#FF4B3A', padding: 15, borderRadius: 10, alignItems: 'center' },
+  checkoutText: { color: 'white', fontSize: 20, fontWeight: 'bold' }
 });
