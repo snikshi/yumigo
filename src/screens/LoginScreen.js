@@ -22,7 +22,7 @@ export default function LoginScreen({ navigation }) {
     try {
         // 1. Send Data to Backend
         // Make sure this IP is still correct!
-        const response = await fetch('http://192.168.1.13:5000/api/auth/login', {
+        const response = await fetch('https://yumigo-api.onrender.com/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })

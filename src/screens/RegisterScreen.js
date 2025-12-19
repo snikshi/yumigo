@@ -18,7 +18,7 @@ export default function RegisterScreen({ navigation }) {
 
     try {
         // 2. The API Call (Using your IP Address)
-        const response = await fetch('http://192.168.1.13:5000/api/auth/register', {
+        const response = await fetch('https://yumigo-api.onrender.com/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, email, password })

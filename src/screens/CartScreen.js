@@ -18,7 +18,7 @@ export default function CartScreen({ navigation }) {
     try {
       // 1. Ask YOUR Server for permission (Payment Intent)
       // Make sure this IP (192.168.1.13) is correct!
-      const response = await fetch('http://192.168.1.13:5000/api/payment/intent', {
+      const response = await fetch('https://yumigo-api.onrender.com/api/payment/intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
