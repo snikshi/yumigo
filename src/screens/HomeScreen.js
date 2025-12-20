@@ -1,35 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, ActivityIndicator, Button } from 'react-native';
+import { useCart } from '../context/CartContext'; // <--- Connected to Cart
 
 export default function HomeScreen() {
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState(null); // Store the error text
+  const [errorMsg, setErrorMsg] = useState(null);
+  const { addToCart } = useCart(); // <--- This enables the add function
 
-  // 👇 VERIFY THIS LINK IS CORRECT
-  const API_URL = "https://yumigo-api.onrender.com"; 
+  // YOUR RENDER URL
+  const API_URL = "https://yumigo-api.onrender.com";
 
   const fetchFood = async () => {
     setLoading(true);
     setErrorMsg(null);
-    
     try {
-      console.log("Fetching from:", `${API_URL}/api/food/list`);
       const response = await fetch(`${API_URL}/api/food/list`);
-      
       if (!response.ok) {
         throw new Error(`Server Status: ${response.status}`);
       }
-
       const json = await response.json();
-      
       if (json.success) {
         setFoods(json.data);
       } else {
         setErrorMsg("Server said success: false");
       }
     } catch (error) {
-      // Show the actual error on the phone screen
       setErrorMsg(error.toString());
     } finally {
       setLoading(false);
@@ -44,7 +40,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Text style={styles.header}>🍔 Yumigo Menu</Text>
 
-      {/* ERROR BOX: Only shows if there is an error */}
+      {/* ERROR BOX */}
       {errorMsg && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>❌ ERROR:</Text>
@@ -65,6 +61,16 @@ export default function HomeScreen() {
               <View style={styles.info}>
                 <Text style={styles.title}>{item.name}</Text>
                 <Text style={styles.price}>${item.price}</Text>
+                
+                {/* 👇 THIS IS THE NEW BUTTON 👇 */}
+                <View style={{ marginTop: 10 }}>
+                    <Button 
+                    title="Add to Cart" 
+                    onPress={() => addToCart(item)} 
+                    color="#FF9900"
+                    />
+                </View>
+
               </View>
             </View>
           )}
