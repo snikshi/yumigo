@@ -5,6 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import RegisterScreen from '../screens/RegisterScreen';
 import LoginScreen from '../screens/LoginScreen';
+import SellerScreen from '../screens/SellerScreen';
 
 // Import all screens
 import HomeScreen from '../screens/HomeScreen';
@@ -20,6 +21,7 @@ const Stack = createNativeStackNavigator();
 function TabNavigator() {
   return (
     <Tab.Navigator
+    
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: '#FF4B3A',
@@ -45,6 +47,13 @@ function TabNavigator() {
       <Tab.Screen name="Food" component={FoodScreen} />
       <Tab.Screen name="Cart" component={CartScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen 
+  name="Seller" 
+  component={SellerScreen} 
+  options={{
+    tabBarIcon: ({ color }) => <Ionicons name="briefcase" size={24} color={color} />
+  }} 
+/>
     </Tab.Navigator>
   );
 }
