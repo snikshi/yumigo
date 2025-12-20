@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 // 👇 IMPORT THE BRAIN
 import { useCart } from '../context/CartContext'; 
+import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -10,12 +11,15 @@ export default function LoginScreen({ navigation }) {
   
   // 👇 GET THE SAVE FUNCTION
   const { loginUser } = useCart(); 
-
+const { login } = useAuth();
   const handleLogin = async () => {
-    if(!email || !password) {
-        Alert.alert("Error", "Please fill all fields!");
-        return;
-    }
+   if (response.ok) {
+    // 👇 THIS SAVES THE USER FOREVER
+    login(data.user); 
+
+    Alert.alert("Welcome Back!", "Login Successful");
+    navigation.replace('MainTabs'); 
+}
     
     setLoading(true);
 
