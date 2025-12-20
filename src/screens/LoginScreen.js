@@ -1,55 +1,45 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-// 👇 IMPORT THE BRAIN
-import { useCart } from '../context/CartContext'; 
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext'; // Only use Auth, not Cart
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // 👇 GET THE SAVE FUNCTION
-  const { loginUser } = useCart(); 
-const { login } = useAuth();
+  // Get the login function from our new "Brain"
+  const { login } = useAuth(); 
+
   const handleLogin = async () => {
-   // ... inside handleLogin ...
-if (response.ok) {
-    // 👇 THIS LINE IS CRITICAL - IT SAVES THE USER
-    login(data.user); 
-    
-    Alert.alert("Success", "Welcome Back!");
-    // ... navigation ...
-}
-    
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
     setLoading(true);
-
     try {
-        // 1. Send Data to Backend
-        // Make sure this IP is still correct!
-        const response = await fetch('https://yumigo-api.onrender.com/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
+      // 1. Send data to server
+      const response = await fetch('https://yumigo-api.onrender.com/api/user/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-        const data = await response.json();
+      const data = await response.json();
 
-        // 2. Check Response
-        if (response.ok) {
-            // 👇 SAVE USER TO MEMORY HERE
-            loginUser(data.user); 
-            
-            Alert.alert("Welcome Back! 👋", "Login Successful");
-            navigation.navigate('MainTabs'); 
-        } else {
-            Alert.alert("Login Failed", data.message || "Invalid credentials");
-        }
-
+      // 2. Check if server said "OK"
+      if (response.ok) {
+        // 3. SAVE THE USER (This fixes the "null" error)
+        login(data.user);
+        Alert.alert('Success', 'Welcome back!');
+        // Navigation is handled by AppNavigator automatically now
+      } else {
+        Alert.alert('Login Failed', data.message || 'Invalid credentials');
+      }
     } catch (error) {
-        Alert.alert("Error", "Could not connect to server.");
+      Alert.alert('Error', 'Could not connect to server');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -59,23 +49,21 @@ if (response.ok) {
       
       <TextInput 
         style={styles.input} 
-        placeholder="Email Address" 
-        keyboardType="email-address"
+        placeholder="Email" 
+        value={email} 
+        onChangeText={setEmail} 
         autoCapitalize="none"
-        value={email}
-        onChangeText={setEmail}
       />
-      
       <TextInput 
         style={styles.input} 
         placeholder="Password" 
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
+        value={password} 
+        onChangeText={setPassword} 
+        secureTextEntry 
       />
 
       <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>LOG IN</Text>}
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate('Register')}>
@@ -87,9 +75,9 @@ if (response.ok) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#fff' },
-  title: { fontSize: 32, fontWeight: 'bold', marginBottom: 40, textAlign: 'center', color: '#FF4B3A' },
-  input: { backgroundColor: '#f0f0f0', padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 16 },
-  button: { backgroundColor: '#FF4B3A', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  buttonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  link: { marginTop: 20, textAlign: 'center', color: 'gray' }
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center', color: '#333' },
+  input: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 16 },
+  button: { backgroundColor: '#FF9900', padding: 15, borderRadius: 10, alignItems: 'center' },
+  buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  link: { marginTop: 20, textAlign: 'center', color: '#007AFF', fontSize: 16 }
 });
