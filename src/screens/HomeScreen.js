@@ -1,58 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, ActivityIndicator, Button } from 'react-native';
-import { useCart } from '../context/CartContext'; // <--- Connected to Cart
-import { formatPrice } from '../helpers/currency';
+import { useCart } from '../context/CartContext'; // <--- Enables Cart
+import { formatPrice } from '../helpers/currency'; // <--- Enables Rupees (₹)
 
 export default function HomeScreen() {
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState(null);
-  const { addToCart } = useCart(); // <--- This enables the add function
+  const { addToCart } = useCart(); 
 
-  // YOUR RENDER URL
+  // CHECK YOUR RENDER URL!
   const API_URL = "https://yumigo-api.onrender.com";
 
   const fetchFood = async () => {
-    setLoading(true);
-    setErrorMsg(null);
     try {
       const response = await fetch(`${API_URL}/api/food/list`);
-      if (!response.ok) {
-        throw new Error(`Server Status: ${response.status}`);
-      }
       const json = await response.json();
-      if (json.success) {
-        setFoods(json.data);
-      } else {
-        setErrorMsg("Server said success: false");
-      }
+      if (json.success) setFoods(json.data);
     } catch (error) {
-      setErrorMsg(error.toString());
+      console.log(error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchFood();
-  }, []);
+  useEffect(() => { fetchFood(); }, []);
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>🍔 Yumigo Menu</Text>
 
-      {/* ERROR BOX */}
-      {errorMsg && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>❌ ERROR:</Text>
-          <Text style={styles.errorText}>{errorMsg}</Text>
-          <Button title="Retry" onPress={fetchFood} />
-        </View>
-      )}
-
-      {loading ? (
-        <ActivityIndicator size="large" color="orange" />
-      ) : (
+      {loading ? <ActivityIndicator size="large" color="orange" /> : (
         <FlatList
           data={foods}
           keyExtractor={(item) => item._id}
@@ -61,17 +38,14 @@ export default function HomeScreen() {
               <Image source={{ uri: item.image }} style={styles.image} />
               <View style={styles.info}>
                 <Text style={styles.title}>{item.name}</Text>
+                
+                {/* 👇 1. SHOWS ₹ INSTEAD OF $ */}
                 <Text style={styles.price}>{formatPrice(item.price)}</Text>
                 
-                {/* 👇 THIS IS THE NEW BUTTON 👇 */}
+                {/* 👇 2. ADDS THE BUTTON */}
                 <View style={{ marginTop: 10 }}>
-                    <Button 
-                    title="Add to Cart" 
-                    onPress={() => addToCart(item)} 
-                    color="#FF9900"
-                    />
+                    <Button title="Add to Cart" onPress={() => addToCart(item)} color="#FF9900"/>
                 </View>
-
               </View>
             </View>
           )}
@@ -84,8 +58,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5', padding: 10, marginTop: 30 },
   header: { fontSize: 28, fontWeight: 'bold', marginBottom: 20, color: '#333' },
-  errorBox: { backgroundColor: '#ffcccc', padding: 15, borderRadius: 10, marginBottom: 20 },
-  errorText: { color: 'red', fontSize: 16, marginBottom: 5 },
   card: { backgroundColor: '#fff', borderRadius: 15, marginBottom: 15, padding: 10 },
   image: { width: '100%', height: 150, borderRadius: 10 },
   info: { marginTop: 10 },

@@ -1,15 +1,14 @@
 import React from 'react';
-import { AuthProvider } from './src/context/AuthContext';
-// We do NOT import NavigationContainer here anymore
 import AppNavigator from './src/navigation/AppNavigator';
 import { CartProvider } from './src/context/CartContext';
+import { AuthProvider } from './src/context/AuthContext'; // <--- 1. NEW IMPORT
 import { StripeProvider } from '@stripe/stripe-react-native';
 
 export default function App() {
   return (
-    // 👇 WRAP EVERYTHING IN AUTH PROVIDER
+    // 👇 2. WRAP EVERYTHING IN AUTH PROVIDER
     <AuthProvider>
-      <StripeProvider publishableKey="...">
+      <StripeProvider publishableKey="pk_test_51Sfknu08capLH0moi2dLDtq4rkwe352PjdsgNgTaXoQsVSM92Tx">
         <CartProvider>
            <AppNavigator />
         </CartProvider>

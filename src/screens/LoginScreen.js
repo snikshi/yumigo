@@ -13,12 +13,13 @@ export default function LoginScreen({ navigation }) {
   const { loginUser } = useCart(); 
 const { login } = useAuth();
   const handleLogin = async () => {
-   if (response.ok) {
-    // 👇 THIS SAVES THE USER FOREVER
+   // ... inside handleLogin ...
+if (response.ok) {
+    // 👇 THIS LINE IS CRITICAL - IT SAVES THE USER
     login(data.user); 
-
-    Alert.alert("Welcome Back!", "Login Successful");
-    navigation.replace('MainTabs'); 
+    
+    Alert.alert("Success", "Welcome Back!");
+    // ... navigation ...
 }
     
     setLoading(true);
