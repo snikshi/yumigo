@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, ActivityIndicator, Button } from 'react-native';
 import { useCart } from '../context/CartContext'; // <--- Connected to Cart
+import { formatPrice } from '../helpers/currency';
 
 export default function HomeScreen() {
   const [foods, setFoods] = useState([]);
@@ -60,7 +61,7 @@ export default function HomeScreen() {
               <Image source={{ uri: item.image }} style={styles.image} />
               <View style={styles.info}>
                 <Text style={styles.title}>{item.name}</Text>
-                <Text style={styles.price}>${item.price}</Text>
+                <Text style={styles.price}>{formatPrice(item.price)}</Text>
                 
                 {/* 👇 THIS IS THE NEW BUTTON 👇 */}
                 <View style={{ marginTop: 10 }}>
