@@ -7,19 +7,19 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Load User from Storage when App starts
+  // 1. Load User from Storage when app starts
   useEffect(() => {
     loadUser();
   }, []);
 
   const loadUser = async () => {
     try {
-      const storedUser = await AsyncStorage.getItem('userData');
+      const storedUser = await AsyncStorage.getItem('user');
       if (storedUser) {
         setUser(JSON.parse(storedUser));
       }
     } catch (e) {
-      console.log("Failed to load user", e);
+      console.error("Failed to load user", e);
     } finally {
       setLoading(false);
     }
@@ -28,13 +28,13 @@ export const AuthProvider = ({ children }) => {
   // 2. Login Function (Saves to Storage)
   const login = async (userData) => {
     setUser(userData);
-    await AsyncStorage.setItem('userData', JSON.stringify(userData));
+    await AsyncStorage.setItem('user', JSON.stringify(userData));
   };
 
   // 3. Logout Function (Clears Storage)
   const logout = async () => {
     setUser(null);
-    await AsyncStorage.removeItem('userData');
+    await AsyncStorage.removeItem('user');
   };
 
   return (
@@ -44,5 +44,4 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// Custom Hook to use it easily
 export const useAuth = () => useContext(AuthContext);
