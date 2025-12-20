@@ -27,7 +27,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>🍔 Yumigo Menu</Text>
+      <Text style={styles.header}>🍔 Yumigo 2.0</Text>
 
       {loading ? <ActivityIndicator size="large" color="orange" /> : (
         <FlatList
