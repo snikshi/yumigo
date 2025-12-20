@@ -3,9 +3,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { CartProvider } from './src/context/CartContext';
 import { AuthProvider } from './src/context/AuthContext'; // <--- 1. NEW IMPORT
 import { StripeProvider } from '@stripe/stripe-react-native';
-// FIXING THE BRAIN - FINAL UPDATE
-import React from 'react';
-// ... rest of code ...
+
 
 export default function App() {
   return (
