@@ -18,7 +18,7 @@ const SYMBOLS = {
 // 2. The Master Function
 export const formatPrice = (priceInUSD) => {
   // Get the user's region (e.g., "IN" for India, "US" for USA)
-  const userRegion = Localization.getLocales()[0]?.regionCode || 'US';
+  const userRegion = 'IN'; // Force India Mode 🇮🇳
 
   // Get the multiplier and symbol (Default to US if unknown)
   const multiplier = EXCHANGE_RATES[userRegion] || 1;
