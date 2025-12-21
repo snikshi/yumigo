@@ -1,5 +1,5 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack'; // 👈 FIXED IMPORT
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -15,7 +15,8 @@ import TrackOrderScreen from '../screens/TrackOrderScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import MenuScreen from '../screens/MenuScreen';
 
-const Stack = createStackNavigator();
+// 👈 FIXED: Changed to Native Stack
+const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // 🏠 Bottom Tab Navigator
@@ -48,7 +49,7 @@ function MainTabs() {
   );
 }
 
-// 🧭 Main Stack Navigator (No NavigationContainer here!)
+// 🧭 Main Stack Navigator
 export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
