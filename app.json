@@ -28,8 +28,14 @@
       }
     },
     "package": "com.snikshi.yumigo",
-    "plugins": [
-      "@stripe/stripe-react-native"
+   "plugins": [
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.yumigo.app",
+          "enableGooglePay": false
+        }
+      ]
     ]
   },
   "web": {
