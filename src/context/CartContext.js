@@ -7,12 +7,18 @@ export const CartProvider = ({ children }) => {
 
   const addToCart = (food) => {
     setCartItems((prevItems) => {
+      // Check if item already exists
       const existingItem = prevItems.find((item) => item._id === food._id);
+      
       if (existingItem) {
+        // 👇 CRITICAL FIX: Update PRICE and IMAGE even if it exists!
         return prevItems.map((item) =>
-          item._id === food._id ? { ...item, quantity: item.quantity + 1 } : item
+          item._id === food._id 
+            ? { ...item, ...food, quantity: item.quantity + 1 } // Update all details + quantity
+            : item
         );
       } else {
+        // Add new item
         return [...prevItems, { ...food, quantity: 1 }];
       }
     });
@@ -22,13 +28,13 @@ export const CartProvider = ({ children }) => {
     setCartItems((prevItems) => prevItems.filter((item) => item._id !== foodId));
   };
 
-  // 👇 NEW FUNCTION: Wipes the cart clean
   const clearCart = () => {
     setCartItems([]);
   };
 
+  // 👇 FORCE NUMBER CONVERSION HERE TOO
   const totalPrice = cartItems.reduce(
-    (total, item) => total + item.price * item.quantity, 
+    (total, item) => total + Number(item.price) * item.quantity, 
     0
   );
 
