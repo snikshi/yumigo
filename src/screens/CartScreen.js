@@ -3,12 +3,34 @@ import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, Alert, Activ
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { formatPrice } from '../helpers/currency'; 
+import { useStripe } from '@stripe/stripe-react-native'; // 👈 IMPORT STRIPE
 
 export default function CartScreen({ navigation }) {
   const { cartItems, removeFromCart, clearCart, totalPrice } = useCart();
   const { user } = useAuth();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe(); // 👈 STRIPE HOOKS
   const [loading, setLoading] = useState(false);
 
+  // 👇 1. ASK SERVER FOR PAYMENT KEY
+  const fetchPaymentIntent = async () => {
+    try {
+      const response = await fetch("https://yumigo-backend.onrender.com/api/payments/intents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: totalPrice }) // Send total (e.g. 170)
+      });
+      
+      const json = await response.json();
+      return json.clientSecret;
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Could not talk to the bank (Server error).");
+      return null;
+    }
+  };
+
+  // 👇 2. HANDLE THE CHECKOUT PROCESS
   const handleCheckout = async () => {
     if (!user) {
       Alert.alert("Login Required", "Please login to place an order.");
@@ -17,20 +39,53 @@ export default function CartScreen({ navigation }) {
 
     setLoading(true);
 
+    // Step A: Get Key from Server
+    const clientSecret = await fetchPaymentIntent();
+    if (!clientSecret) {
+        setLoading(false);
+        return;
+    }
+
+    // Step B: Prepare the Payment Sheet
+    const { error: initError } = await initPaymentSheet({
+      merchantDisplayName: "Yumigo App",
+      paymentIntentClientSecret: clientSecret,
+    });
+
+    if (initError) {
+      Alert.alert("Error", "Could not open payment sheet.");
+      setLoading(false);
+      return;
+    }
+
+    // Step C: Open the Sheet!
+    const { error: paymentError } = await presentPaymentSheet();
+
+    if (paymentError) {
+      Alert.alert("Payment Failed", paymentError.message);
+      setLoading(false);
+    } else {
+      // ✅ PAYMENT SUCCESS! NOW PLACE ORDER
+      await placeOrder();
+    }
+  };
+
+  // 👇 3. SAVE ORDER TO DATABASE (Only runs after payment)
+  const placeOrder = async () => {
     try {
       const orderPayload = {
-        userId: user._id || "guest_user",
+        userId: user._id,
         items: cartItems.map(item => ({
             name: item.name,
             quantity: item.quantity,
-            price: Number(item.price), // 👈 FORCE NUMBER
+            price: Number(item.price),
             image: item.image
         })),
         totalPrice: totalPrice,
         status: "Preparing"
       };
 
-      const response = await fetch("https://yumigo-api.onrender.com/api/orders/create", {
+      const response = await fetch("https://yumigo-backend.onrender.com/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderPayload)
@@ -39,15 +94,16 @@ export default function CartScreen({ navigation }) {
       const json = await response.json();
 
       if (json.success) {
+        Alert.alert("Success", "Payment Received & Order Placed! 🍔");
         clearCart();
         navigation.navigate('TrackOrder');
       } else {
-        Alert.alert("Order Failed", json.error || "Something went wrong.");
+        Alert.alert("Order Failed", json.error || "Something went wrong saving the order.");
       }
 
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Could not connect to server.");
+      Alert.alert("Error", "Payment went through, but order saving failed.");
     } finally {
       setLoading(false);
     }
@@ -69,33 +125,24 @@ export default function CartScreen({ navigation }) {
       <FlatList
         data={cartItems}
         keyExtractor={(item) => item._id}
-        renderItem={({ item }) => {
-            // 👇 CALCULATE LINE TOTAL SAFELY
-            const unitPrice = Number(item.price);
-            const lineTotal = unitPrice * item.quantity;
-            
-            return (
-              <View style={styles.itemCard}>
-                <Image source={{ uri: item.image }} style={styles.image} />
-                <View style={styles.info}>
-                  <Text style={styles.name}>{item.name}</Text>
-                  
-                  {/* 👇 SHOW THE MATH: ₹100 x 2 */}
-                  <Text style={styles.mathText}>
-                    {formatPrice(unitPrice)} x {item.quantity}
-                  </Text>
-                  
-                  <Text style={styles.price}>{formatPrice(lineTotal)}</Text>
-                </View>
-                <TouchableOpacity 
-                  style={styles.removeButton} 
-                  onPress={() => removeFromCart(item._id)}
-                >
-                  <Text style={styles.removeText}>Remove</Text>
-                </TouchableOpacity>
-              </View>
-            );
-        }}
+        renderItem={({ item }) => (
+          <View style={styles.itemCard}>
+            <Image source={{ uri: item.image }} style={styles.image} />
+            <View style={styles.info}>
+              <Text style={styles.name}>{item.name}</Text>
+              <Text style={styles.mathText}>
+                {formatPrice(item.price)} x {item.quantity}
+              </Text>
+              <Text style={styles.price}>{formatPrice(item.price * item.quantity)}</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.removeButton} 
+              onPress={() => removeFromCart(item._id)}
+            >
+              <Text style={styles.removeText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       />
 
       <View style={styles.footer}>
@@ -112,7 +159,7 @@ export default function CartScreen({ navigation }) {
           {loading ? (
              <ActivityIndicator color="#fff" />
           ) : (
-             <Text style={styles.checkoutText}>✅ Checkout & Pay</Text>
+             <Text style={styles.checkoutText}>💳 Pay & Checkout</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -130,7 +177,7 @@ const styles = StyleSheet.create({
   image: { width: 70, height: 70, borderRadius: 35, marginRight: 15 },
   info: { flex: 1 },
   name: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  mathText: { color: '#888', fontSize: 14, marginTop: 2 }, // 👈 New Style
+  mathText: { color: '#888', fontSize: 14, marginTop: 2 },
   price: { fontSize: 16, fontWeight: 'bold', color: 'green', marginTop: 4 },
   removeButton: { backgroundColor: '#ffdede', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   removeText: { color: 'red', fontWeight: 'bold', fontSize: 12 },
