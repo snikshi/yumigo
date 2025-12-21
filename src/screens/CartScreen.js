@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext'; // 👈 Gets the logged-in User
+import { useAuth } from '../context/AuthContext';
 import { formatPrice } from '../helpers/currency'; 
 
 export default function CartScreen({ navigation }) {
-  // 👇 We get clearCart from the Context we updated in Step 1
   const { cartItems, removeFromCart, clearCart, totalPrice } = useCart();
-  const { user } = useAuth(); 
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const handleCheckout = async () => {
-    // 1. Check if user is logged in
     if (!user) {
       Alert.alert("Login Required", "Please login to place an order.");
       return;
@@ -20,20 +18,18 @@ export default function CartScreen({ navigation }) {
     setLoading(true);
 
     try {
-      // 2. Package the Order Data 📦
       const orderPayload = {
         userId: user._id || "guest_user",
         items: cartItems.map(item => ({
             name: item.name,
             quantity: item.quantity,
-            price: item.price,
+            price: Number(item.price), // 👈 FORCE NUMBER
             image: item.image
         })),
         totalPrice: totalPrice,
         status: "Preparing"
       };
 
-      // 3. Send to Server (Render) 🚀
       const response = await fetch("https://yumigo-api.onrender.com/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -43,8 +39,7 @@ export default function CartScreen({ navigation }) {
       const json = await response.json();
 
       if (json.success) {
-        // 4. If success: Clear Cart & Go to Tracking
-        clearCart(); 
+        clearCart();
         navigation.navigate('TrackOrder');
       } else {
         Alert.alert("Order Failed", json.error || "Something went wrong.");
@@ -74,22 +69,33 @@ export default function CartScreen({ navigation }) {
       <FlatList
         data={cartItems}
         keyExtractor={(item) => item._id}
-        renderItem={({ item }) => (
-          <View style={styles.itemCard}>
-            <Image source={{ uri: item.image }} style={styles.image} />
-            <View style={styles.info}>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.quantity}>Qty: {item.quantity}</Text>
-              <Text style={styles.price}>{formatPrice(item.price * item.quantity)}</Text>
-            </View>
-            <TouchableOpacity 
-              style={styles.removeButton} 
-              onPress={() => removeFromCart(item._id)}
-            >
-              <Text style={styles.removeText}>Remove</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        renderItem={({ item }) => {
+            // 👇 CALCULATE LINE TOTAL SAFELY
+            const unitPrice = Number(item.price);
+            const lineTotal = unitPrice * item.quantity;
+            
+            return (
+              <View style={styles.itemCard}>
+                <Image source={{ uri: item.image }} style={styles.image} />
+                <View style={styles.info}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  
+                  {/* 👇 SHOW THE MATH: ₹100 x 2 */}
+                  <Text style={styles.mathText}>
+                    {formatPrice(unitPrice)} x {item.quantity}
+                  </Text>
+                  
+                  <Text style={styles.price}>{formatPrice(lineTotal)}</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.removeButton} 
+                  onPress={() => removeFromCart(item._id)}
+                >
+                  <Text style={styles.removeText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            );
+        }}
       />
 
       <View style={styles.footer}>
@@ -124,7 +130,7 @@ const styles = StyleSheet.create({
   image: { width: 70, height: 70, borderRadius: 35, marginRight: 15 },
   info: { flex: 1 },
   name: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  quantity: { color: '#666', marginTop: 4 },
+  mathText: { color: '#888', fontSize: 14, marginTop: 2 }, // 👈 New Style
   price: { fontSize: 16, fontWeight: 'bold', color: 'green', marginTop: 4 },
   removeButton: { backgroundColor: '#ffdede', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   removeText: { color: 'red', fontWeight: 'bold', fontSize: 12 },
