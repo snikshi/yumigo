@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useAuth } from '../context/AuthContext';
 
-export default function LoginScreen() {
+export default function SignupScreen() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
-  const { login } = useAuth(); // 👈 Use the Auth Context we built earlier
 
-  const handleLogin = async () => {
-    if (!email || !password) {
+  const handleSignup = async () => {
+    if (!name || !email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -19,27 +18,24 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      // 👇 CHANGE THIS TO YOUR RENDER URL
-      const response = await fetch('https://yumigo-backend.onrender.com/api/auth/login', {
+      // 👇 MAKE SURE THIS URL MATCHES YOUR RENDER SERVER
+      const response = await fetch('https://yumigo-backend.onrender.com/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name, email, password }),
       });
 
       const json = await response.json();
 
       if (json.success) {
-        // ✅ Login Success!
-        await login(json.user); // Save user to memory
-        
-        // 👇 FIXED NAVIGATION: Go to "MainTabs" instead of "Home"
-        navigation.replace('MainTabs'); 
+        Alert.alert('Success', 'Account created! Please login.');
+        navigation.navigate('Login'); // Go back to Login
       } else {
-        Alert.alert('Login Failed', json.message || 'Invalid credentials');
+        Alert.alert('Error', json.message || 'Signup failed');
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'Could not connect to server. Is it awake?');
+      Alert.alert('Error', 'Could not connect to server.');
     } finally {
       setLoading(false);
     }
@@ -47,8 +43,15 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome Back! 👋</Text>
+      <Text style={styles.title}>Create Account 🚀</Text>
       
+      <TextInput
+        style={styles.input}
+        placeholder="Full Name"
+        value={name}
+        onChangeText={setName}
+      />
+
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -67,21 +70,19 @@ export default function LoginScreen() {
 
       <TouchableOpacity 
         style={styles.button} 
-        onPress={handleLogin} 
+        onPress={handleSignup} 
         disabled={loading}
       >
         {loading ? (
             <ActivityIndicator color="#fff" />
         ) : (
-            <Text style={styles.buttonText}>Login</Text>
+            <Text style={styles.buttonText}>Sign Up</Text>
         )}
       </TouchableOpacity>
 
-  
-
-<TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-  <Text style={styles.link}>Don't have an account? Sign Up</Text>
-</TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+        <Text style={styles.link}>Already have an account? Login</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -89,8 +90,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#fff' },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center', color: '#333' },
-  input: { backgroundColor: '#FFF8DC', padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 16 },
-  button: { backgroundColor: '#FF9900', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
+  input: { backgroundColor: '#f0f0f0', padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 16 },
+  button: { backgroundColor: '#24963F', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
   buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   link: { marginTop: 20, textAlign: 'center', color: '#007AFF' },
 });

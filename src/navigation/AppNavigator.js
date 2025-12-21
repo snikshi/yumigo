@@ -14,6 +14,7 @@ import SellerScreen from '../screens/SellerScreen';
 import TrackOrderScreen from '../screens/TrackOrderScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import MenuScreen from '../screens/MenuScreen';
+import SignupScreen from '../screens/SignupScreen';
 
 // 👈 FIXED: Changed to Native Stack
 const Stack = createNativeStackNavigator();
@@ -54,6 +55,8 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
+      
+<Stack.Screen name="Signup" component={SignupScreen} />  {/* 👈 ADD THIS LINE */}
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Menu" component={MenuScreen} />
       <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
