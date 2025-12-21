@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack'; // 👈 New Import
 import { NavigationContainer } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 
 // Import Screens
 import HomeScreen from '../screens/HomeScreen';
@@ -55,6 +56,7 @@ export default function AppNavigator() {
         <Stack.Screen name="MainTabs" component={MainTabs} />
         {/* The Tracking screen sits "on top" of the tabs */}
         <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
+        <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

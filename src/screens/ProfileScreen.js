@@ -13,8 +13,9 @@ export default function ProfileScreen({ navigation }) {
     ]);
   };
 
-  const renderOption = (icon, title, subtitle) => (
-    <TouchableOpacity style={styles.optionRow}>
+ // Change the function definition to accept 'onPress'
+  const renderOption = (icon, title, subtitle, onPress) => (
+    <TouchableOpacity style={styles.optionRow} onPress={onPress}> 
       <View style={styles.iconContainer}>
         <Ionicons name={icon} size={22} color="#444" />
       </View>
@@ -60,7 +61,7 @@ export default function ProfileScreen({ navigation }) {
         {/* 3. MENU OPTIONS */}
         <View style={styles.section}>
             <Text style={styles.sectionTitle}>MY ACCOUNT</Text>
-            {renderOption("receipt-outline", "Your Orders", "Track ongoing orders")}
+            {renderOption("receipt-outline", "Your Orders", "Track ongoing orders", () => navigation.navigate('OrderHistory'))}
             {renderOption("heart-outline", "Favorite Restaurants", "3 saved places")}
             {renderOption("card-outline", "Payments & Refunds", "Manage cards")}
         </View>
