@@ -14,7 +14,7 @@ export default function CartScreen({ navigation }) {
   // 👇 1. ASK SERVER FOR PAYMENT KEY
   const fetchPaymentIntent = async () => {
     try {
-      const response = await fetch("https://yumigo-backend.onrender.com/api/payments/intents", {
+      const response = await fetch("https://yumigo-api.onrender.com/api/payments/intents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: totalPrice }) // Send total (e.g. 170)
