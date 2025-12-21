@@ -12,6 +12,7 @@ import CartScreen from '../screens/CartScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SellerScreen from '../screens/SellerScreen';
 import RideScreen from '../screens/RideScreen';
+import MenuScreen from '../screens/MenuScreen';
 import TrackOrderScreen from '../screens/TrackOrderScreen'; // 👈 NEW
 
 const Tab = createBottomTabNavigator();
@@ -57,6 +58,7 @@ export default function AppNavigator() {
         {/* The Tracking screen sits "on top" of the tabs */}
         <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
         <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+        <Stack.Screen name="Menu" component={MenuScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
