@@ -1,10 +1,11 @@
 import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack'; // 👈 FIXED IMPORT
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 // Import Screens
 import LoginScreen from '../screens/LoginScreen';
+import SignupScreen from '../screens/SignupScreen'; // 👈 Imported here
 import HomeScreen from '../screens/HomeScreen';
 import FoodScreen from '../screens/FoodScreen';
 import RideScreen from '../screens/RideScreen';
@@ -14,13 +15,10 @@ import SellerScreen from '../screens/SellerScreen';
 import TrackOrderScreen from '../screens/TrackOrderScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import MenuScreen from '../screens/MenuScreen';
-import SignupScreen from '../screens/SignupScreen';
 
-// 👈 FIXED: Changed to Native Stack
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// 🏠 Bottom Tab Navigator
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -50,13 +48,11 @@ function MainTabs() {
   );
 }
 
-// 🧭 Main Stack Navigator
 export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
-      
-<Stack.Screen name="Signup" component={SignupScreen} />  {/* 👈 ADD THIS LINE */}
+      <Stack.Screen name="Signup" component={SignupScreen} />
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Menu" component={MenuScreen} />
       <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
