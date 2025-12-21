@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { useAuth } from '../context/AuthContext'; // Only use Auth, not Cart
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // Get the login function from our new "Brain"
-  const { login } = useAuth(); 
+  const navigation = useNavigation();
+  const { login } = useAuth(); // 👈 Use the Auth Context we built earlier
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -17,27 +17,29 @@ export default function LoginScreen({ navigation }) {
     }
 
     setLoading(true);
+
     try {
-      // 1. Send data to server
-      const response = await fetch('https://yumigo-api.onrender.com/api/user/login', {
+      // 👇 CHANGE THIS TO YOUR RENDER URL
+      const response = await fetch('https://yumigo-backend.onrender.com/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const json = await response.json();
 
-      // 2. Check if server said "OK"
-      if (response.ok) {
-        // 3. SAVE THE USER (This fixes the "null" error)
-        login(data.user);
-        Alert.alert('Success', 'Welcome back!');
-        // Navigation is handled by AppNavigator automatically now
+      if (json.success) {
+        // ✅ Login Success!
+        await login(json.user); // Save user to memory
+        
+        // 👇 FIXED NAVIGATION: Go to "MainTabs" instead of "Home"
+        navigation.replace('MainTabs'); 
       } else {
-        Alert.alert('Login Failed', data.message || 'Invalid credentials');
+        Alert.alert('Login Failed', json.message || 'Invalid credentials');
       }
     } catch (error) {
-      Alert.alert('Error', 'Could not connect to server');
+      console.error(error);
+      Alert.alert('Error', 'Could not connect to server. Is it awake?');
     } finally {
       setLoading(false);
     }
@@ -47,26 +49,35 @@ export default function LoginScreen({ navigation }) {
     <View style={styles.container}>
       <Text style={styles.title}>Welcome Back! 👋</Text>
       
-      <TextInput 
-        style={styles.input} 
-        placeholder="Email" 
-        value={email} 
-        onChangeText={setEmail} 
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
         autoCapitalize="none"
       />
-      <TextInput 
-        style={styles.input} 
-        placeholder="Password" 
-        value={password} 
-        onChangeText={setPassword} 
-        secureTextEntry 
+      
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={handleLogin} 
+        disabled={loading}
+      >
+        {loading ? (
+            <ActivityIndicator color="#fff" />
+        ) : (
+            <Text style={styles.buttonText}>Login</Text>
+        )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+      <TouchableOpacity onPress={() => Alert.alert("Coming Soon", "Sign Up is disabled for this demo.")}>
         <Text style={styles.link}>Don't have an account? Sign Up</Text>
       </TouchableOpacity>
     </View>
@@ -76,8 +87,8 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#fff' },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center', color: '#333' },
-  input: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 16 },
-  button: { backgroundColor: '#FF9900', padding: 15, borderRadius: 10, alignItems: 'center' },
+  input: { backgroundColor: '#FFF8DC', padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 16 },
+  button: { backgroundColor: '#FF9900', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
   buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  link: { marginTop: 20, textAlign: 'center', color: '#007AFF', fontSize: 16 }
+  link: { marginTop: 20, textAlign: 'center', color: '#007AFF' },
 });
