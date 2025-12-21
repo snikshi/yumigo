@@ -4,7 +4,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+ // 👇 FORCE LOGIN: We pretend we are already logged in!
+  const [user, setUser] = useState({ 
+    _id: "test_user_123", 
+    name: "Boss User", 
+    email: "boss@test.com",
+    token: "fake_token"
+  });
   const [loading, setLoading] = useState(true);
 
   // 1. Load User from Storage when app starts
