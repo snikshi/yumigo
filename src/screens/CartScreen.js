@@ -85,7 +85,7 @@ export default function CartScreen({ navigation }) {
         status: "Preparing"
       };
 
-      const response = await fetch("https://yumigo-backend.onrender.com/api/orders/create", {
+      const response = await fetch("https://yumigo-api.onrender.com/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderPayload)
