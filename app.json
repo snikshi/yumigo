@@ -2,6 +2,7 @@
   "expo": {
     "name": "Yumigo",
     "slug": "yumigoapp",
+    "scheme": "yumigo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -14,7 +15,7 @@
     "ios": {
       "supportsTablet": true
     },
-   "android": {
+    "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -22,23 +23,24 @@
       "package": "com.anonymous.yumigoapp",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyAudALei2FaWjcm8BeAOjXOo1OZDcB_Sww" 
+          "apiKey": "AIzaSyAudALei2FaWjcm8BeAOjXOo1OZDcB_Sww"
         }
       }
     },
-      
-      "package": "com.snikshi.yumigo"
-    },
-    "web": {
-      "favicon": "./assets/images/favicon.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "75052658-b12a-4830-b92d-1d653c6d3dc1"
-      }
-    },
+    "package": "com.snikshi.yumigo",
     "plugins": [
-      "expo-localization"
+      "@stripe/stripe-react-native"
     ]
-  }
-
+  },
+  "web": {
+    "favicon": "./assets/images/favicon.png"
+  },
+  "extra": {
+    "eas": {
+      "projectId": "75052658-b12a-4830-b92d-1d653c6d3dc1"
+    }
+  },
+  "plugins": [
+    "expo-localization"
+  ]
+}
