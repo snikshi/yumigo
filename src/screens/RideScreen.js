@@ -1,55 +1,78 @@
 import React, { useState } from 'react';
 import { 
-  View, Text, StyleSheet, ImageBackground, TextInput, 
-  TouchableOpacity, FlatList, Image, SafeAreaView, Alert, StatusBar 
+  View, Text, StyleSheet, TextInput, 
+  TouchableOpacity, FlatList, SafeAreaView, Alert, StatusBar, Dimensions 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import MapView, { Marker } from 'react-native-maps'; // 👈 THE REAL MAP
 
 export default function RideScreen() {
   const [selectedRide, setSelectedRide] = useState('1');
 
-  // 🚗 The "Mock" Vehicles
+  // 📍 Initial Location (Hyderabad - Charminar Area)
+  const initialRegion = {
+    latitude: 17.3616,
+    longitude: 78.4747,
+    latitudeDelta: 0.015,
+    longitudeDelta: 0.0121,
+  };
+
   const rides = [
     { id: '1', name: 'Moto', price: '₹45', time: '3 min', icon: 'bicycle' },
-    { id: '2', name: 'Auto', price: '₹85', time: '5 min', icon: 'alert-circle' }, // Using alert-circle as generic auto shape or similar
+    { id: '2', name: 'Auto', price: '₹85', time: '5 min', icon: 'alert-circle' },
     { id: '3', name: 'Mini', price: '₹140', time: '8 min', icon: 'car-sport' },
     { id: '4', name: 'Prime', price: '₹190', time: '9 min', icon: 'car' },
   ];
 
   const handleBook = () => {
-    Alert.alert("Searching...", "Connecting you to the nearest driver... 🚕");
-    setTimeout(() => {
-        Alert.alert("Driver Found!", "Ramesh (TS09 EA 1234) is arriving in 4 mins.");
-    }, 2000);
+    Alert.alert("Requesting Ride...", "Connecting to nearby drivers...");
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* 🗺️ MAP BACKGROUND (The Visual Trick) */}
-      <ImageBackground 
-        source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=1000&auto=format&fit=crop' }} 
-        style={styles.map}
+      {/* 🗺️ REAL INTERACTIVE GOOGLE MAP */}
+      <MapView 
+        style={styles.map} 
+        initialRegion={initialRegion}
+        provider="google" // Forces Google Maps on both iOS and Android
       >
-        {/* HEADER & SEARCH */}
-        <SafeAreaView style={styles.headerSafeArea}>
-            <View style={styles.searchBox}>
-                <View style={styles.menuIcon}>
-                    <Ionicons name="menu" size={24} color="#333" />
-                </View>
-                <View>
-                    <Text style={styles.pickupText}>Current Location</Text>
-                    <Text style={styles.dropText}>Where to?</Text>
-                </View>
-                <View style={styles.clockIcon}>
-                    <Ionicons name="time" size={20} color="#333" />
-                </View>
-            </View>
-        </SafeAreaView>
-      </ImageBackground>
+        {/* 📍 User Marker */}
+        <Marker 
+          coordinate={{ latitude: 17.3616, longitude: 78.4747 }} 
+          title="You are here"
+          description="Pickup Location"
+          pinColor="blue"
+        />
 
-      {/* 🚙 BOTTOM SHEET (Vehicle Selection) */}
+        {/* 🚕 Fake Driver Marker */}
+        <Marker 
+          coordinate={{ latitude: 17.3640, longitude: 78.4760 }} 
+          title="Driver: Ramesh"
+          description="Hero Splendor"
+          pinColor="orange"
+        />
+      </MapView>
+
+      {/* HEADER SEARCH */}
+      <SafeAreaView style={styles.headerSafeArea}>
+        <View style={styles.searchBox}>
+            <TouchableOpacity style={styles.menuIcon}>
+                <Ionicons name="menu" size={24} color="#333" />
+            </TouchableOpacity>
+            <View style={{flex: 1}}>
+                <Text style={styles.pickupText}>Current Location</Text>
+                <TextInput 
+                    placeholder="Where to?" 
+                    style={styles.input} 
+                    placeholderTextColor="#333"
+                />
+            </View>
+        </View>
+      </SafeAreaView>
+
+      {/* BOTTOM SHEET */}
       <View style={styles.bottomSheet}>
         <View style={styles.dragHandle} />
         <Text style={styles.sheetTitle}>Choose a ride</Text>
@@ -68,20 +91,12 @@ export default function RideScreen() {
                 <View style={styles.iconCircle}>
                     <Ionicons name={item.icon} size={28} color={selectedRide === item.id ? "#fff" : "#333"} />
                 </View>
-                <Text style={styles.rideName}>{item.name}</Text>
-                <Text style={styles.rideTime}>{item.time}</Text>
-                <Text style={styles.ridePrice}>{item.price}</Text>
+                <Text style={[styles.rideName, selectedRide === item.id && {color: '#fff'}]}>{item.name}</Text>
+                <Text style={[styles.rideTime, selectedRide === item.id && {color: '#ccc'}]}>{item.time}</Text>
+                <Text style={[styles.ridePrice, selectedRide === item.id && {color: '#fff'}]}>{item.price}</Text>
             </TouchableOpacity>
           )}
         />
-
-        <View style={styles.paymentRow}>
-            <View style={styles.paymentMethod}>
-                <Ionicons name="cash" size={20} color="green" />
-                <Text style={styles.paymentText}> Cash</Text>
-            </View>
-            <Text style={styles.couponText}>Apply Coupon</Text>
-        </View>
 
         <TouchableOpacity style={styles.bookButton} onPress={handleBook}>
             <Text style={styles.bookText}>Book {rides.find(r => r.id === selectedRide)?.name}</Text>
@@ -93,44 +108,37 @@ export default function RideScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  map: { flex: 1, resizeMode: 'cover' }, // Takes up full screen background
+  // Map takes full screen
+  map: { width: Dimensions.get('window').width, height: Dimensions.get('window').height },
   
-  headerSafeArea: { margin: 20 },
+  headerSafeArea: { position: 'absolute', top: 40, width: '100%', alignItems: 'center' },
   searchBox: { 
     backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', 
-    padding: 15, borderRadius: 12, elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10
+    width: '90%', padding: 10, borderRadius: 10, elevation: 5 
   },
   menuIcon: { marginRight: 15 },
-  pickupText: { color: 'green', fontSize: 12, fontWeight: 'bold' },
-  dropText: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  clockIcon: { marginLeft: 'auto', backgroundColor: '#eee', padding: 5, borderRadius: 20 },
+  pickupText: { color: 'green', fontSize: 10, fontWeight: 'bold' },
+  input: { fontSize: 18, fontWeight: 'bold', color: '#333', width: '100%' },
 
-  // Bottom Sheet
   bottomSheet: { 
     backgroundColor: '#fff', position: 'absolute', bottom: 0, width: '100%', 
-    borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 20,
-    elevation: 20, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 15
+    borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, elevation: 20 
   },
-  dragHandle: { width: 40, height: 5, backgroundColor: '#ddd', alignSelf: 'center', borderRadius: 10, marginBottom: 15 },
+  dragHandle: { width: 40, height: 4, backgroundColor: '#ddd', alignSelf: 'center', borderRadius: 10, marginBottom: 15 },
   sheetTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#333' },
   
   rideList: { paddingBottom: 20 },
   rideCard: { 
-    backgroundColor: '#f8f8f8', width: 100, height: 130, borderRadius: 15, 
-    alignItems: 'center', justifyContent: 'center', marginRight: 10, borderWidth: 1, borderColor: '#eee' 
+    backgroundColor: '#f2f2f2', width: 100, height: 120, borderRadius: 12, 
+    alignItems: 'center', justifyContent: 'center', marginRight: 10 
   },
-  selectedRide: { backgroundColor: '#333', borderColor: '#333' }, // Dark mode for selected
+  selectedRide: { backgroundColor: '#222' }, 
   
-  iconCircle: { marginBottom: 10 },
-  rideName: { fontWeight: 'bold', fontSize: 16, color: '#888' },
-  rideTime: { fontSize: 12, color: '#aaa', marginBottom: 5 },
+  iconCircle: { marginBottom: 8 },
+  rideName: { fontWeight: 'bold', fontSize: 16, color: '#333' },
+  rideTime: { fontSize: 11, color: '#666', marginBottom: 4 },
   ridePrice: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   
-  paymentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, marginTop: 10 },
-  paymentMethod: { flexDirection: 'row', alignItems: 'center' },
-  paymentText: { fontWeight: 'bold' },
-  couponText: { color: 'blue', fontWeight: 'bold' },
-  
-  bookButton: { backgroundColor: '#333', padding: 18, borderRadius: 12, alignItems: 'center' },
+  bookButton: { backgroundColor: '#222', padding: 16, borderRadius: 10, alignItems: 'center' },
   bookText: { color: '#fff', fontSize: 18, fontWeight: 'bold' }
 });

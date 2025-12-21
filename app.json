@@ -14,11 +14,19 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {
+   "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "com.anonymous.yumigoapp",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAudALei2FaWjcm8BeAOjXOo1OZDcB_Sww" 
+        }
+      }
+    },
+      
       "package": "com.snikshi.yumigo"
     },
     "web": {
@@ -33,4 +41,4 @@
       "expo-localization"
     ]
   }
-}
+
