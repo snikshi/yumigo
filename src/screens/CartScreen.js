@@ -1,15 +1,61 @@
-import React from 'react';
-import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext'; // 👈 Gets the logged-in User
 import { formatPrice } from '../helpers/currency'; 
 
-// 👇 Notice: We only have ({ navigation }) ONCE here.
 export default function CartScreen({ navigation }) {
-  const { cartItems, removeFromCart, totalPrice } = useCart();
+  // 👇 We get clearCart from the Context we updated in Step 1
+  const { cartItems, removeFromCart, clearCart, totalPrice } = useCart();
+  const { user } = useAuth(); 
+  const [loading, setLoading] = useState(false);
 
-  const handleCheckout = () => {
-    // 👇 Navigate to the Tracking Screen
-    navigation.navigate('TrackOrder'); 
+  const handleCheckout = async () => {
+    // 1. Check if user is logged in
+    if (!user) {
+      Alert.alert("Login Required", "Please login to place an order.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 2. Package the Order Data 📦
+      const orderPayload = {
+        userId: user._id || "guest_user",
+        items: cartItems.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            image: item.image
+        })),
+        totalPrice: totalPrice,
+        status: "Preparing"
+      };
+
+      // 3. Send to Server (Render) 🚀
+      const response = await fetch("https://yumigo-api.onrender.com/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderPayload)
+      });
+
+      const json = await response.json();
+
+      if (json.success) {
+        // 4. If success: Clear Cart & Go to Tracking
+        clearCart(); 
+        navigation.navigate('TrackOrder');
+      } else {
+        Alert.alert("Order Failed", json.error || "Something went wrong.");
+      }
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Could not connect to server.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (cartItems.length === 0) {
@@ -51,8 +97,17 @@ export default function CartScreen({ navigation }) {
           <Text style={styles.totalLabel}>Total:</Text>
           <Text style={styles.totalAmount}>{formatPrice(totalPrice)}</Text>
         </View>
-        <TouchableOpacity style={styles.checkoutButton} onPress={handleCheckout}>
-          <Text style={styles.checkoutText}>✅ Checkout Now</Text>
+        
+        <TouchableOpacity 
+            style={[styles.checkoutButton, loading && { opacity: 0.7 }]} 
+            onPress={handleCheckout}
+            disabled={loading}
+        >
+          {loading ? (
+             <ActivityIndicator color="#fff" />
+          ) : (
+             <Text style={styles.checkoutText}>✅ Checkout & Pay</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
