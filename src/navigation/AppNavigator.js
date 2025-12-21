@@ -1,83 +1,60 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack'; // 👈 New Import
 import { NavigationContainer } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import RegisterScreen from '../screens/RegisterScreen';
-import LoginScreen from '../screens/LoginScreen';
-import SellerScreen from '../screens/SellerScreen';
 
-// Import all screens
+// Import Screens
 import HomeScreen from '../screens/HomeScreen';
 import FoodScreen from '../screens/FoodScreen';
+import CartScreen from '../screens/CartScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import RestaurantDetailScreen from '../screens/RestaurantDetailScreen';
-import CartScreen from '../screens/CartScreen'; // <--- Make sure this is imported
+import SellerScreen from '../screens/SellerScreen';
+import RideScreen from '../screens/RideScreen';
+import TrackOrderScreen from '../screens/TrackOrderScreen'; // 👈 NEW
 
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator(); // 👈 Create Stack
 
 // 1. The Tabs (Bottom Bar)
-function TabNavigator() {
+function MainTabs() {
   return (
     <Tab.Navigator
-    
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#FF4B3A',
+        tabBarActiveTintColor: '#FF9900',
         tabBarInactiveTintColor: 'gray',
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-
-          if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Food') {
-            iconName = focused ? 'fast-food' : 'fast-food-outline';
-          } else if (route.name === 'Cart') {
-            iconName = focused ? 'cart' : 'cart-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
+            let iconName;
+            if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
+            else if (route.name === 'Food') iconName = focused ? 'restaurant' : 'restaurant-outline';
+            else if (route.name === 'Ride') iconName = focused ? 'car-sport' : 'car-sport-outline';
+            else if (route.name === 'Cart') iconName = focused ? 'cart' : 'cart-outline';
+            else if (route.name === 'Seller') iconName = focused ? 'briefcase' : 'briefcase-outline';
+            else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
+            return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Food" component={FoodScreen} />
+      <Tab.Screen name="Ride" component={RideScreen} />
       <Tab.Screen name="Cart" component={CartScreen} />
+      <Tab.Screen name="Seller" component={SellerScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
-      <Tab.Screen 
-  name="Seller" 
-  component={SellerScreen} 
-  options={{
-    tabBarIcon: ({ color }) => <Ionicons name="briefcase" size={24} color={color} />
-  }} 
-/>
     </Tab.Navigator>
   );
 }
 
-// 2. The Main Stack (Holds Tabs + Details)
-// ... existing imports ...
-
-// 2. The Main Stack
+// 2. The Main Stack (This controls everything)
 export default function AppNavigator() {
   return (
     <NavigationContainer>
-      {/* initialRouteName tells the app which screen to show first */}
-      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Register">
-        
-        {/* The Login/Register Screen */}
-        <Stack.Screen name="Register" component={RegisterScreen} />
-<Stack.Screen name="Login" component={LoginScreen} />
-
-        {/* The Main App (Tabs) */}
-        <Stack.Screen name="MainTabs" component={TabNavigator} />
-        
-        {/* The Detail Screen */}
-        <Stack.Screen name="RestaurantDetail" component={RestaurantDetailScreen} />
-        
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {/* The Tabs are the main screen */}
+        <Stack.Screen name="MainTabs" component={MainTabs} />
+        {/* The Tracking screen sits "on top" of the tabs */}
+        <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

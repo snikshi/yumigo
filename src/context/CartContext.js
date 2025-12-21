@@ -1,30 +1,42 @@
 import React, { createContext, useState, useContext } from 'react';
+import { Alert } from 'react-native';
 
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState([]);
-  const [user, setUser] = useState(null); // <--- NEW: Store User Info
+  const [cartItems, setCartItems] = useState([]);
 
-  // Cart Functions
-  const addToCart = (item) => {
-    setCart((prevCart) => [...prevCart, item]);
+  // 1. The Add Function
+  const addToCart = (foodItem) => {
+    // Check if item is already in cart
+    const existingItem = cartItems.find((item) => item._id === foodItem._id);
+    
+    if (existingItem) {
+      // If yes, just increase quantity
+      setCartItems(cartItems.map((item) => 
+        item._id === foodItem._id 
+        ? { ...item, quantity: item.quantity + 1 } 
+        : item
+      ));
+    } else {
+      // If no, add it as new
+      setCartItems([...cartItems, { ...foodItem, quantity: 1 }]);
+    }
+    
+    // Give feedback to user
+    Alert.alert("Yum!", `${foodItem.name} added to cart.`);
   };
-  const removeFromCart = (itemId) => {
-    setCart(prevCart => prevCart.filter(item => item.id !== itemId));
-  };
-  const totalPrice = cart.reduce((sum, item) => sum + item.price, 0);
 
-  // User Functions
-  const loginUser = (userData) => {
-    setUser(userData); // Save user to memory
+  // 2. The Remove Function
+  const removeFromCart = (foodId) => {
+    setCartItems(cartItems.filter((item) => item._id !== foodId));
   };
-  const logoutUser = () => {
-    setUser(null); // Clear user
-  };
+
+  // 3. The Total Price Calculator
+  const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, totalPrice, user, loginUser, logoutUser }}>
+    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, totalPrice }}>
       {children}
     </CartContext.Provider>
   );

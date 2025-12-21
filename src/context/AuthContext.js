@@ -5,8 +5,9 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
  // 👇 FORCE LOGIN: We pretend we are already logged in!
+ // 👇 UPDATE THIS PART
   const [user, setUser] = useState({ 
-    _id: "test_user_123", 
+    _id: "658e8b23f4c1b2a3d4e5f678",  // <--- 1. REALISTIC 24-CHAR ID
     name: "Boss User", 
     email: "boss@test.com",
     token: "fake_token"
