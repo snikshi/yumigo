@@ -7,7 +7,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1️⃣ LOAD USER FROM STORAGE ON APP START
+  // 1️⃣ LOAD USER ON STARTUP
   useEffect(() => {
     loadStorageData();
   }, []);
@@ -25,19 +25,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 2️⃣ LOGIN (Save to Storage)
+  // 2️⃣ LOGIN & SAVE
   const login = async (userData) => {
     setUser(userData);
     await AsyncStorage.setItem('user', JSON.stringify(userData));
   };
 
-  // 3️⃣ SIGNUP (Save to Storage)
+  // 3️⃣ SIGNUP & SAVE
   const signup = async (userData) => {
     setUser(userData);
     await AsyncStorage.setItem('user', JSON.stringify(userData));
   };
 
-  // 4️⃣ LOGOUT (Clear Storage)
+  // 4️⃣ LOGOUT & CLEAR
   const logout = async () => {
     setUser(null);
     await AsyncStorage.removeItem('user');
