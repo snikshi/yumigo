@@ -1,144 +1,187 @@
-import React, { useState } from 'react';
-import { 
-  View, Text, StyleSheet, TextInput, 
-  TouchableOpacity, FlatList, SafeAreaView, Alert, StatusBar, Dimensions 
-} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Keyboard, Alert } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker } from 'react-native-maps'; // 👈 THE REAL MAP
+import { useAuth } from '../context/AuthContext';
 
-export default function RideScreen() {
-  const [selectedRide, setSelectedRide] = useState('1');
 
-  // 📍 Initial Location (Hyderabad - Charminar Area)
-  const initialRegion = {
-    latitude: 17.3616,
-    longitude: 78.4747,
-    latitudeDelta: 0.015,
-    longitudeDelta: 0.0121,
+export default function RideScreen({ navigation }) {
+  const [destination, setDestination] = useState('');
+  const [region, setRegion] = useState({
+    latitude: 17.440080, // Default: Hyderabad (You can change this)
+    latitudeDelta: 0.0922,
+    longitude: 78.348915,
+    longitudeDelta: 0.0421,
+  });
+  
+  const [route, setRoute] = useState(null); // Stores the ride path
+  const [price, setPrice] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const { user} = useAuth();
+
+  // 📍 1. SIMULATE "FINDING" A LOCATION
+  const handleSearch = () => {
+    Keyboard.dismiss();
+    if (!destination) return;
+
+    setLoading(true);
+
+    // Simulate network delay
+    setTimeout(() => {
+      // Create a fake "Drop Location" slightly away from the user
+      const fakeDropLat = region.latitude + 0.02; // Move slightly North
+      const fakeDropLng = region.longitude + 0.02; // Move slightly East
+
+      setRoute({
+        pickup: { latitude: region.latitude, longitude: region.longitude },
+        drop: { latitude: fakeDropLat, longitude: fakeDropLng },
+      });
+
+      // Calculate fake price (₹15 per km roughly)
+      setPrice(Math.floor(Math.random() * 50) + 100); // Random price ₹100-150
+      setLoading(false);
+    }, 1500);
   };
 
-  const rides = [
-    { id: '1', name: 'Moto', price: '₹45', time: '3 min', icon: 'bicycle' },
-    { id: '2', name: 'Auto', price: '₹85', time: '5 min', icon: 'alert-circle' },
-    { id: '3', name: 'Mini', price: '₹140', time: '8 min', icon: 'car-sport' },
-    { id: '4', name: 'Prime', price: '₹190', time: '9 min', icon: 'car' },
-  ];
+  // 🚕 2. CONFIRM RIDE
+ // 👇 REAL BOOKING FUNCTION
+  const bookRide = async () => {
+    if (!user) {
+        Alert.alert("Error", "Please login to book a ride.");
+        return;
+    }
 
-  const handleBook = () => {
-    Alert.alert("Requesting Ride...", "Connecting to nearby drivers...");
+    setLoading(true);
+
+    try {
+      // ⚠️ USE YOUR URL (yumigo-api)
+      const response = await fetch("https://yumigo-api.onrender.com/api/rides/book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            userId: user._id,
+            pickup: { 
+                latitude: region.latitude, 
+                longitude: region.longitude,
+                address: "Current Location" 
+            },
+            drop: { 
+                latitude: route.drop.latitude, 
+                longitude: route.drop.longitude,
+                address: destination 
+            },
+            price: price
+        })
+      });
+
+      const json = await response.json();
+
+      if (json.success) {
+        Alert.alert(
+            "Ride Confirmed! 🚕", 
+            `Driver ${json.ride.driverName} (${json.ride.carNumber}) is coming!`
+        );
+        // Reset Screen
+        setRoute(null);
+        setDestination('');
+        setPrice(null);
+      } else {
+        Alert.alert("Error", "Booking failed.");
+      }
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Server error.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-
-      {/* 🗺️ REAL INTERACTIVE GOOGLE MAP */}
+      {/* 🗺️ MAP BACKGROUND */}
       <MapView 
-        style={styles.map} 
-        initialRegion={initialRegion}
-        provider="google" // Forces Google Maps on both iOS and Android
+        style={styles.map}
+        initialRegion={region}
+        onRegionChangeComplete={(r) => setRegion(r)} // Update region when user drags map
       >
-        {/* 📍 User Marker */}
-        <Marker 
-          coordinate={{ latitude: 17.3616, longitude: 78.4747 }} 
-          title="You are here"
-          description="Pickup Location"
-          pinColor="blue"
-        />
+        {/* User Marker */}
+        <Marker coordinate={{ latitude: region.latitude, longitude: region.longitude }}>
+            <View style={styles.myLocation}>
+                 <Ionicons name="person" size={15} color="white" />
+            </View>
+        </Marker>
 
-        {/* 🚕 Fake Driver Marker */}
-        <Marker 
-          coordinate={{ latitude: 17.3640, longitude: 78.4760 }} 
-          title="Driver: Ramesh"
-          description="Hero Splendor"
-          pinColor="orange"
-        />
+        {/* Destination Marker & Route (Only if simulated) */}
+        {route && (
+            <>
+                <Marker coordinate={route.drop} pinColor="red" />
+                <Polyline 
+                    coordinates={[route.pickup, route.drop]} 
+                    strokeColor="black" 
+                    strokeWidth={4} 
+                    lineDashPattern={[1]}
+                />
+            </>
+        )}
       </MapView>
 
-      {/* HEADER SEARCH */}
-      <SafeAreaView style={styles.headerSafeArea}>
-        <View style={styles.searchBox}>
-            <TouchableOpacity style={styles.menuIcon}>
-                <Ionicons name="menu" size={24} color="#333" />
-            </TouchableOpacity>
-            <View style={{flex: 1}}>
-                <Text style={styles.pickupText}>Current Location</Text>
-                <TextInput 
-                    placeholder="Where to?" 
-                    style={styles.input} 
-                    placeholderTextColor="#333"
-                />
-            </View>
-        </View>
-      </SafeAreaView>
-
-      {/* BOTTOM SHEET */}
-      <View style={styles.bottomSheet}>
-        <View style={styles.dragHandle} />
-        <Text style={styles.sheetTitle}>Choose a ride</Text>
+      {/* 📦 SEARCH BOX CARD */}
+      <View style={styles.searchCard}>
+        <Text style={styles.greeting}>Where to? 🚕</Text>
         
-        <FlatList
-          data={rides}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.rideList}
-          renderItem={({ item }) => (
-            <TouchableOpacity 
-                style={[styles.rideCard, selectedRide === item.id && styles.selectedRide]}
-                onPress={() => setSelectedRide(item.id)}
-            >
-                <View style={styles.iconCircle}>
-                    <Ionicons name={item.icon} size={28} color={selectedRide === item.id ? "#fff" : "#333"} />
-                </View>
-                <Text style={[styles.rideName, selectedRide === item.id && {color: '#fff'}]}>{item.name}</Text>
-                <Text style={[styles.rideTime, selectedRide === item.id && {color: '#ccc'}]}>{item.time}</Text>
-                <Text style={[styles.ridePrice, selectedRide === item.id && {color: '#fff'}]}>{item.price}</Text>
-            </TouchableOpacity>
-          )}
-        />
+        <View style={styles.inputRow}>
+            <Ionicons name="search" size={20} color="gray" />
+            <TextInput 
+                style={styles.input} 
+                placeholder="Enter destination (e.g., Office)"
+                value={destination}
+                onChangeText={setDestination}
+            />
+        </View>
 
-        <TouchableOpacity style={styles.bookButton} onPress={handleBook}>
-            <Text style={styles.bookText}>Book {rides.find(r => r.id === selectedRide)?.name}</Text>
+        <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Find Ride</Text>}
         </TouchableOpacity>
       </View>
+
+      {/* 💰 PRICE CARD (Pops up after search) */}
+      {route && (
+          <View style={styles.rideCard}>
+              <View style={styles.rideInfo}>
+                  <Text style={styles.carType}>UberGo 🚗</Text>
+                  <Text style={styles.estTime}>5 mins away</Text>
+              </View>
+              <Text style={styles.price}>₹{price}</Text>
+              
+              <TouchableOpacity style={styles.bookBtn} onPress={bookRide}>
+                  <Text style={styles.bookText}>Confirm Ride</Text>
+              </TouchableOpacity>
+          </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  // Map takes full screen
-  map: { width: Dimensions.get('window').width, height: Dimensions.get('window').height },
+  map: { flex: 1 },
+  myLocation: { backgroundColor: '#007AFF', padding: 8, borderRadius: 20, borderWidth: 2, borderColor: 'white' },
   
-  headerSafeArea: { position: 'absolute', top: 40, width: '100%', alignItems: 'center' },
-  searchBox: { 
-    backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', 
-    width: '90%', padding: 10, borderRadius: 10, elevation: 5 
-  },
-  menuIcon: { marginRight: 15 },
-  pickupText: { color: 'green', fontSize: 10, fontWeight: 'bold' },
-  input: { fontSize: 18, fontWeight: 'bold', color: '#333', width: '100%' },
+  // Search Box Styles
+  searchCard: { position: 'absolute', top: 50, left: 20, right: 20, backgroundColor: 'white', padding: 20, borderRadius: 15, elevation: 10 },
+  greeting: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
+  inputRow: { flexDirection: 'row', backgroundColor: '#f0f0f0', padding: 12, borderRadius: 10, alignItems: 'center' },
+  input: { marginLeft: 10, flex: 1, fontSize: 16 },
+  searchBtn: { backgroundColor: 'black', padding: 15, borderRadius: 10, marginTop: 15, alignItems: 'center' },
+  btnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 
-  bottomSheet: { 
-    backgroundColor: '#fff', position: 'absolute', bottom: 0, width: '100%', 
-    borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, elevation: 20 
-  },
-  dragHandle: { width: 40, height: 4, backgroundColor: '#ddd', alignSelf: 'center', borderRadius: 10, marginBottom: 15 },
-  sheetTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#333' },
-  
-  rideList: { paddingBottom: 20 },
-  rideCard: { 
-    backgroundColor: '#f2f2f2', width: 100, height: 120, borderRadius: 12, 
-    alignItems: 'center', justifyContent: 'center', marginRight: 10 
-  },
-  selectedRide: { backgroundColor: '#222' }, 
-  
-  iconCircle: { marginBottom: 8 },
-  rideName: { fontWeight: 'bold', fontSize: 16, color: '#333' },
-  rideTime: { fontSize: 11, color: '#666', marginBottom: 4 },
-  ridePrice: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  
-  bookButton: { backgroundColor: '#222', padding: 16, borderRadius: 10, alignItems: 'center' },
-  bookText: { color: '#fff', fontSize: 18, fontWeight: 'bold' }
+  // Bottom Ride Card Styles
+  rideCard: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'white', padding: 25, borderTopLeftRadius: 20, borderTopRightRadius: 20, elevation: 20 },
+  rideInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  carType: { fontSize: 18, fontWeight: 'bold' },
+  estTime: { marginLeft: 10, color: 'gray' },
+  price: { fontSize: 28, fontWeight: 'bold', marginBottom: 20 },
+  bookBtn: { backgroundColor: '#24963F', padding: 15, borderRadius: 10, alignItems: 'center' },
+  bookText: { color: 'white', fontWeight: 'bold', fontSize: 18 }
 });
