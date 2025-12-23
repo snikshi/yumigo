@@ -1,6 +1,5 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import { NavigationContainer } from '@react-navigation/native';
 import { View, ActivityIndicator } from 'react-native'; 
 import { useAuth } from '../context/AuthContext'; 
 
@@ -31,31 +30,30 @@ export default function AppNavigator() {
     );
   }
 
+  // 👇 NO NavigationContainer here (App.js handles it!)
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          // 🔓 LOGGED IN
-          <>
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="Food" component={FoodScreen} />
-            <Stack.Screen name="RestaurantDetail" component={RestaurantDetailScreen} />
-            <Stack.Screen name="Cart" component={CartScreen} />
-            <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
-            <Stack.Screen name="History" component={OrderHistoryScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-            <Stack.Screen name="Ride" component={RideScreen} />
-            <Stack.Screen name="RideHistory" component={RideHistoryScreen} />
-          </>
-        ) : (
-          // 🔒 LOGGED OUT
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-          </>
-        )}
-      </Stack.Navigator> 
-    </NavigationContainer>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {user ? (
+        // 🔓 LOGGED IN
+        <>
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="Food" component={FoodScreen} />
+          <Stack.Screen name="RestaurantDetail" component={RestaurantDetailScreen} />
+          <Stack.Screen name="Cart" component={CartScreen} />
+          <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
+          <Stack.Screen name="History" component={OrderHistoryScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="Ride" component={RideScreen} />
+          <Stack.Screen name="RideHistory" component={RideHistoryScreen} />
+        </>
+      ) : (
+        // 🔒 LOGGED OUT
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Signup" component={SignupScreen} />
+        </>
+      )}
+    </Stack.Navigator> 
   );
 }

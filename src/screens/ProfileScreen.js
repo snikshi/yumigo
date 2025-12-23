@@ -63,7 +63,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.section}>
             <Text style={styles.sectionTitle}>MY ACCOUNT</Text>
             {/* 1.Food Orders */}
-            {renderOption("receipt-outline", "Your Orders", "Track ongoing orders", () => navigation.navigate('OrderHistory'))}
+            {renderOption("receipt-outline", "Your Orders", "Track ongoing orders", () => navigation.navigate('History'))}
            {/* 2. My Rides (new!) */}
              {renderOption("receipt-outline", "My Rides", "Track ongoing rides", () => navigation.navigate('RideHistory'))}
             {/* 3. Favorites */}

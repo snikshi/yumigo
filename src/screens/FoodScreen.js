@@ -88,7 +88,7 @@ export default function FoodScreen() {
             // 👇 THIS WAS THE MISSING PART!
             <TouchableOpacity 
                 style={styles.card}
-                onPress={() => navigation.navigate('Menu', { restaurant: item })}
+                onPress={() => navigation.navigate('RestaurantDetail', { restaurant: item })}
             >
               <Image 
                 source={{ uri: item.image || 'https://via.placeholder.com/300' }} 

@@ -33,7 +33,7 @@ export default function LoginScreen() {
         await login(json.user); // Save user to memory
         
         // 👇 FIXED NAVIGATION: Go to "MainTabs" instead of "Home"
-        navigation.replace('MainTabs'); 
+       
       } else {
         Alert.alert('Login Failed', json.message || 'Invalid credentials');
       }

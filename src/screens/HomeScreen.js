@@ -111,7 +111,7 @@ export default function HomeScreen() {
                     // 👇 CLICK ACTION ADDED HERE
                     <TouchableOpacity 
                         style={styles.card}
-                        onPress={() => navigation.navigate('Menu', { restaurant: item })}
+                        onPress={() => navigation.navigate('RestaurantDetail', { restaurant: item })}
                     >
                         <Image source={{ uri: item.image }} style={styles.image} />
                         <View style={styles.cardInfo}>

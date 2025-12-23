@@ -1,85 +1,93 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useCart } from '../context/CartContext'; // <--- Import the Brain
+import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { useCart } from '../context/CartContext'; 
 
 export default function RestaurantDetailScreen({ route, navigation }) {
-  const { restaurant } = route.params;
-  const { addToCart, cart } = useCart(); // <--- Get the addToCart function
+  // 1. Safe Data Loading with Defaults
+  const params = route.params || {};
+  const restaurant = params.restaurant || {};
+  
+  // 2. Get Cart Tools
+  const { addToCart, cart } = useCart(); 
 
-  // Wrapper function to handle adding
-  const handleAddItem = (item) => {
-    addToCart(item);
-    Alert.alert("Yum! 😋", `${item.name} added to cart!`);
-  };
+  // 3. Ultra-Safe Menu Loading
+  // If restaurant.menu is missing, use an empty array []
+  const menu = restaurant.menu || []; 
+
+  // 4. Render a single menu item
+  const renderItem = ({ item }) => (
+    <View style={styles.menuItem}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.dishName}>{item?.name || "Unknown Item"}</Text>
+        <Text style={styles.dishPrice}>₹{item?.price || 0}</Text>
+        <Text style={styles.dishDesc}>{item?.description || ""}</Text>
+      </View>
+      <TouchableOpacity 
+        style={styles.addBtn}
+        onPress={() => {
+            addToCart(item, restaurant);
+            Alert.alert("Added", `${item.name} added to cart! 🛒`);
+        }}
+      >
+        <Text style={styles.addText}>ADD</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      
+    <View style={styles.container}>
       {/* Header Image */}
-      <View>
-        <Image source={{ uri: restaurant.image }} style={styles.image} />
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="black" />
-        </TouchableOpacity>
+      <Image 
+        source={{ uri: restaurant.image || 'https://via.placeholder.com/300' }} 
+        style={styles.image} 
+      />
+      
+      {/* Restaurant Info */}
+      <View style={styles.infoContainer}>
+        <Text style={styles.name}>{restaurant.name || "Unknown Restaurant"}</Text>
+        <Text style={styles.details}>
+          {restaurant.cuisine || "Food"} • ⭐ {restaurant.rating || "4.0"} • {restaurant.time || "30"} mins
+        </Text>
       </View>
 
-      <ScrollView style={styles.content}>
-        <Text style={styles.title}>{restaurant.name}</Text>
-        <Text style={styles.info}>⭐ {restaurant.rating} • 🕒 {restaurant.time}</Text>
-        
-        {/* Cart Counter (Temporary Debug) */}
-        <Text style={{color: 'red', fontWeight: 'bold', marginTop: 10}}>
-            Items in Cart: {cart.length}
-        </Text>
+      {/* Menu List */}
+      <Text style={styles.menuTitle}>Menu ({menu.length} items)</Text>
+      
+      <FlatList
+        data={menu}
+        keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
+        renderItem={renderItem}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        ListEmptyComponent={
+            <Text style={{textAlign: 'center', marginTop: 20, color: '#888'}}>
+                No menu items available.
+            </Text>
+        }
+      />
 
-        <Text style={styles.sectionTitle}>Full Menu</Text>
-
-        {/* Menu Items with Add Logic */}
-        <MenuItem 
-            name="Classic Burger" 
-            price={5.99} 
-            onAdd={() => handleAddItem({ id: 1, name: "Classic Burger", price: 5.99, restaurantId: restaurant.id })} 
-        />
-        <MenuItem 
-            name="Large Fries" 
-            price={2.99} 
-            onAdd={() => handleAddItem({ id: 2, name: "Large Fries", price: 2.99, restaurantId: restaurant.id })} 
-        />
-        <MenuItem 
-            name="Coke Zero" 
-            price={1.50} 
-            onAdd={() => handleAddItem({ id: 3, name: "Coke Zero", price: 1.50, restaurantId: restaurant.id })} 
-        />
-
-      </ScrollView>
+      {/* View Cart Button */}
+      {cart.length > 0 && (
+          <TouchableOpacity style={styles.viewCartBtn} onPress={() => navigation.navigate('Cart')}>
+              <Text style={styles.viewCartText}>View Cart ({cart.length})</Text>
+          </TouchableOpacity>
+      )}
     </View>
   );
 }
 
-// Simple Sub-Component for clean code
-const MenuItem = ({ name, price, onAdd }) => (
-    <View style={styles.menuItem}>
-        <View>
-            <Text style={styles.foodName}>{name}</Text>
-            <Text style={styles.price}>${price}</Text>
-        </View>
-        <TouchableOpacity style={styles.addButton} onPress={onAdd}>
-            <Text style={styles.addText}>ADD</Text>
-        </TouchableOpacity>
-    </View>
-);
-
 const styles = StyleSheet.create({
-  image: { width: '100%', height: 250 },
-  backButton: { position: 'absolute', top: 40, left: 20, backgroundColor: 'white', padding: 8, borderRadius: 20 },
-  content: { padding: 20 },
-  title: { fontSize: 28, fontWeight: 'bold' },
-  info: { fontSize: 16, color: 'gray', marginVertical: 5 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginTop: 20, marginBottom: 10 },
-  menuItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  foodName: { fontSize: 16, fontWeight: '600' },
-  price: { color: 'green', fontWeight: 'bold' },
-  addButton: { backgroundColor: '#FF4B3A', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 5 },
-  addText: { color: 'white', fontWeight: 'bold' }
+  container: { flex: 1, backgroundColor: '#fff' },
+  image: { width: '100%', height: 200 },
+  infoContainer: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  name: { fontSize: 24, fontWeight: 'bold' },
+  details: { color: '#666', marginTop: 5 },
+  menuTitle: { fontSize: 20, fontWeight: 'bold', padding: 20 },
+  menuItem: { flexDirection: 'row', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', alignItems: 'center' },
+  dishName: { fontSize: 18, fontWeight: 'bold' },
+  dishPrice: { fontSize: 16, color: '#333', marginTop: 4 },
+  dishDesc: { color: '#888', fontSize: 12, marginTop: 4 },
+  addBtn: { backgroundColor: '#fff', borderWidth: 1, borderColor: 'green', paddingHorizontal: 20, paddingVertical: 8, borderRadius: 5 },
+  addText: { color: 'green', fontWeight: 'bold' },
+  viewCartBtn: { position: 'absolute', bottom: 30, left: 20, right: 20, backgroundColor: 'green', padding: 15, borderRadius: 10, alignItems: 'center' },
+  viewCartText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
 });
