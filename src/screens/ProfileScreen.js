@@ -25,6 +25,7 @@ export default function ProfileScreen({ navigation }) {
       </View>
       <Ionicons name="chevron-forward" size={20} color="#ccc" />
     </TouchableOpacity>
+    
   );
 
   return (
@@ -39,10 +40,10 @@ export default function ProfileScreen({ navigation }) {
             style={styles.avatar} 
           />
           <View>
-            <Text style={styles.name}>{user?.name || "Boss User"}</Text>
-            <Text style={styles.email}>{user?.email || "boss@yumigo.com"}</Text>
-            <TouchableOpacity style={styles.editBtn}>
-                <Text style={styles.editBtnText}>Edit Profile</Text>
+            <Text style={styles.name}>{user?.name || "Test User"}</Text>
+           <Text style={styles.email}>{user?.email || "test@test.com"}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
+                <Text style={{color: '#FF9900', fontWeight: 'bold', marginTop: 5}}>Edit Profile</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -61,10 +62,16 @@ export default function ProfileScreen({ navigation }) {
         {/* 3. MENU OPTIONS */}
         <View style={styles.section}>
             <Text style={styles.sectionTitle}>MY ACCOUNT</Text>
+            {/* 1.Food Orders */}
             {renderOption("receipt-outline", "Your Orders", "Track ongoing orders", () => navigation.navigate('OrderHistory'))}
-            {renderOption("heart-outline", "Favorite Restaurants", "3 saved places")}
-            {renderOption("card-outline", "Payments & Refunds", "Manage cards")}
+           {/* 2. My Rides (new!) */}
+             {renderOption("receipt-outline", "My Rides", "Track ongoing rides", () => navigation.navigate('RideHistory'))}
+            {/* 3. Favorites */}
+            {renderOption("heart-outline", "Favorite Restaurants", "3 saved places", () => console.log("Favorites clicked"))}
+           {/* payments and refunds */}
+            {renderOption("card-outline", "Payments & Refunds", "Manage cards", () => console.log("Payments & Refunds clicked"))}
         </View>
+       
 
         <View style={styles.section}>
             <Text style={styles.sectionTitle}>SETTINGS</Text>
@@ -73,8 +80,20 @@ export default function ProfileScreen({ navigation }) {
             {renderOption("help-circle-outline", "Help & Support")}
         </View>
 
+
+    
+
         {/* 4. LOGOUT */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        {/* 👇 LOGOUT BUTTON */}
+        <TouchableOpacity 
+          style={styles.logoutBtn} 
+          onPress={() => {
+            logout(); // Clear memory
+            // The AuthContext usually handles navigation, but to be safe:
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] }); 
+          }}
+        >
+            <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
             <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
@@ -113,7 +132,7 @@ const styles = StyleSheet.create({
   optionSubtitle: { fontSize: 12, color: '#999', marginTop: 2 },
 
   // Logout
-  logoutButton: { margin: 20, backgroundColor: '#FFF0F0', padding: 15, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#FFDEDE' },
-  logoutText: { color: 'red', fontWeight: 'bold', fontSize: 16 },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 40, marginBottom: 20, padding: 15, backgroundColor: '#fff0f0', borderRadius: 10 },
+logoutText: { color: '#FF3B30', fontWeight: 'bold', fontSize: 18, marginLeft: 10 },
   version: { textAlign: 'center', color: '#ccc', fontSize: 12 }
 });

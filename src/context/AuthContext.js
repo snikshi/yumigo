@@ -4,48 +4,47 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
- // 👇 FORCE LOGIN: We pretend we are already logged in!
- // 👇 UPDATE THIS PART
-  const [user, setUser] = useState({ 
-    _id: "658e8b23f4c1b2a3d4e5f678",  // <--- 1. REALISTIC 24-CHAR ID
-    name: "Boss User", 
-    email: "boss@test.com",
-    token: "fake_token"
-  });
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Load User from Storage when app starts
+  // 1️⃣ LOAD USER FROM STORAGE ON APP START
   useEffect(() => {
-    loadUser();
+    loadStorageData();
   }, []);
 
-  const loadUser = async () => {
+  const loadStorageData = async () => {
     try {
       const storedUser = await AsyncStorage.getItem('user');
       if (storedUser) {
         setUser(JSON.parse(storedUser));
       }
-    } catch (e) {
-      console.error("Failed to load user", e);
+    } catch (error) {
+      console.error("Failed to load user", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. Login Function (Saves to Storage)
+  // 2️⃣ LOGIN (Save to Storage)
   const login = async (userData) => {
     setUser(userData);
     await AsyncStorage.setItem('user', JSON.stringify(userData));
   };
 
-  // 3. Logout Function (Clears Storage)
+  // 3️⃣ SIGNUP (Save to Storage)
+  const signup = async (userData) => {
+    setUser(userData);
+    await AsyncStorage.setItem('user', JSON.stringify(userData));
+  };
+
+  // 4️⃣ LOGOUT (Clear Storage)
   const logout = async () => {
     setUser(null);
     await AsyncStorage.removeItem('user');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, setUser, login, signup, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

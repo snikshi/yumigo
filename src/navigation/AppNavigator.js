@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import RideHistoryScreen from '../screens/RideHistoryScreen';
 
 // Import Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -15,6 +16,7 @@ import SellerScreen from '../screens/SellerScreen';
 import TrackOrderScreen from '../screens/TrackOrderScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import MenuScreen from '../screens/MenuScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -57,6 +59,8 @@ export default function AppNavigator() {
       <Stack.Screen name="Menu" component={MenuScreen} />
       <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
       <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+      <Stack.Screen name="RideHistory" component={RideHistoryScreen} />
+       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
     </Stack.Navigator>
   );
 }
