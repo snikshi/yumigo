@@ -1,123 +1,115 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, RefreshControl } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
 export default function SellerScreen() {
+  const [orders, setOrders] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
-  const [mode, setMode] = useState('REGISTER'); // 'REGISTER' or 'ADD_FOOD'
-  
-  // Restaurant Form
-  const [restName, setRestName] = useState('');
-  const [restAddress, setRestAddress] = useState('');
-  const [restImage, setRestImage] = useState('https://via.placeholder.com/150');
-  const [myRestaurantId, setMyRestaurantId] = useState(null); // Saves ID after registering
 
-  // Food Form
-  const [foodName, setFoodName] = useState('');
-  const [foodPrice, setFoodPrice] = useState('');
-  const [foodImage, setFoodImage] = useState('https://via.placeholder.com/150');
-  const [foodCategory, setFoodCategory] = useState('Burger');
-
-  const API_URL = "https://yumigo-api.onrender.com"; // CHECK YOUR URL!
-
-  // 1. Register Restaurant Function
-  const handleRegisterRestaurant = async () => {
+  // 👇 1. FETCH AVAILABLE ORDERS
+  const fetchOrders = async () => {
+    setRefreshing(true);
     try {
-      const response = await fetch(`${API_URL}/api/partner/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ownerId: user._id, // Uses your logged-in ID
-          name: restName,
-          address: restAddress,
-          image: restImage
-        })
-      });
+      // ⚠️ USE YOUR CORRECT RENDER URL (yumigo-api)
+      const response = await fetch("https://yumigo-api.onrender.com/api/partner/available-orders");
       const json = await response.json();
-      if (json.success) {
-        Alert.alert("Success", "Restaurant Created!");
-        setMyRestaurantId(json.data._id); // Save the ID so we can add food to it
-        setMode('ADD_FOOD'); // Switch to food mode
-      } else {
-        Alert.alert("Error", json.error || "Failed to register");
-      }
+      setOrders(json);
     } catch (error) {
-      Alert.alert("Error", error.message);
+      console.error(error);
+      Alert.alert("Error", "Could not fetch new orders");
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  // 2. Add Food Function
-  const handleAddFood = async () => {
-    if (!myRestaurantId) {
-      Alert.alert("Error", "You must register a restaurant first!");
-      return;
-    }
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  // 👇 2. ACCEPT AN ORDER
+  const acceptOrder = async (orderId) => {
     try {
-      const response = await fetch(`${API_URL}/api/partner/add-food`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          restaurantId: myRestaurantId,
-          name: foodName,
-          price: Number(foodPrice),
-          image: foodImage,
-          category: foodCategory
+      const response = await fetch("https://yumigo-api.onrender.com/api/partner/accept-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            orderId: orderId,
+            driverId: user._id // The logged-in user becomes the driver
         })
       });
+
       const json = await response.json();
+
       if (json.success) {
-        Alert.alert("Success", "Food Item Added!");
-        // Clear form
-        setFoodName('');
-        setFoodPrice('');
+        Alert.alert("Success", "You are now delivering this order! 🛵");
+        fetchOrders(); // Refresh the list to remove the taken order
       } else {
-        Alert.alert("Error", json.error);
+        Alert.alert("Error", "Could not accept order.");
       }
     } catch (error) {
-      Alert.alert("Error", error.message);
+      console.error(error);
+      Alert.alert("Error", "Server connection failed.");
     }
   };
 
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.header}>👨‍🍳 Partner Dashboard</Text>
-      
-      {/* TOGGLE BUTTONS (Optional if you want to switch back manually) */}
-      <View style={{flexDirection:'row', marginBottom: 20}}>
-        <Button title="Register Restaurant" onPress={()=>setMode('REGISTER')} disabled={mode==='REGISTER'} />
-        <View style={{width:10}}/>
-        <Button title="Add Food" onPress={()=>setMode('ADD_FOOD')} disabled={mode==='ADD_FOOD'} />
+  const renderOrder = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.headerRow}>
+        <Text style={styles.orderId}>Order #{item._id.slice(-4)}</Text>
+        <Text style={styles.price}>₹{item.totalPrice}</Text>
       </View>
 
-      {mode === 'REGISTER' ? (
-        <View style={styles.form}>
-          <Text style={styles.subHeader}>Step 1: Create Restaurant</Text>
-          <TextInput placeholder="Restaurant Name" style={styles.input} value={restName} onChangeText={setRestName} />
-          <TextInput placeholder="Address" style={styles.input} value={restAddress} onChangeText={setRestAddress} />
-          <TextInput placeholder="Image URL" style={styles.input} value={restImage} onChangeText={setRestImage} />
-          <Button title="Register Now" onPress={handleRegisterRestaurant} color="green" />
-        </View>
-      ) : (
-        <View style={styles.form}>
-          <Text style={styles.subHeader}>Step 2: Add Menu Items</Text>
-          <Text style={{color:'gray', marginBottom:10}}>Adding to: {restName}</Text>
-          
-          <TextInput placeholder="Food Name (e.g. Cheese Burger)" style={styles.input} value={foodName} onChangeText={setFoodName} />
-          <TextInput placeholder="Price (USD)" keyboardType="numeric" style={styles.input} value={foodPrice} onChangeText={setFoodPrice} />
-          <TextInput placeholder="Food Image URL" style={styles.input} value={foodImage} onChangeText={setFoodImage} />
-          <TextInput placeholder="Category (Burger, Pizza...)" style={styles.input} value={foodCategory} onChangeText={setFoodCategory} />
-          
-          <Button title="Add Item" onPress={handleAddFood} color="#FF9900" />
-        </View>
-      )}
-    </ScrollView>
+      <Text style={styles.status}>Status: {item.status}</Text>
+      
+      <Text style={styles.itemsLabel}>Items:</Text>
+      {item.items.map((food, index) => (
+        <Text key={index} style={styles.itemText}>
+           • {food.quantity}x {food.name}
+        </Text>
+      ))}
+
+      <TouchableOpacity 
+        style={styles.acceptButton} 
+        onPress={() => acceptOrder(item._id)}
+      >
+        <Text style={styles.acceptText}>✅ ACCEPT DELIVERY</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>🛵 Driver Dashboard</Text>
+      <Text style={styles.subtitle}>Available Orders nearby:</Text>
+
+      <FlatList
+        data={orders}
+        keyExtractor={(item) => item._id}
+        renderItem={renderOrder}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={fetchOrders} />
+        }
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No orders waiting... take a break! ☕</Text>
+        }
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, marginTop: 40 },
-  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  subHeader: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#444' },
-  form: { backgroundColor: '#fff', padding: 15, borderRadius: 10, elevation: 3 },
-  input: { borderBottomWidth: 1, borderColor: '#ccc', marginBottom: 15, padding: 5, fontSize: 16 }
+  container: { flex: 1, backgroundColor: '#f2f2f2', padding: 20, paddingTop: 50 },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#333' },
+  subtitle: { fontSize: 16, color: '#666', marginBottom: 20 },
+  card: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 15, elevation: 3 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  orderId: { fontSize: 18, fontWeight: 'bold' },
+  price: { fontSize: 18, fontWeight: 'bold', color: 'green' },
+  status: { color: '#FF9900', fontWeight: 'bold', marginBottom: 10 },
+  itemsLabel: { fontWeight: 'bold', marginTop: 5 },
+  itemText: { color: '#555', marginLeft: 10 },
+  acceptButton: { backgroundColor: '#24963F', padding: 12, borderRadius: 8, marginTop: 15, alignItems: 'center' },
+  acceptText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  emptyText: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 16 }
 });
