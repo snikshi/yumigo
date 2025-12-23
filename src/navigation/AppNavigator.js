@@ -1,66 +1,61 @@
 import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import RideHistoryScreen from '../screens/RideHistoryScreen';
+import { createStackNavigator } from '@react-navigation/stack';
+import { NavigationContainer } from '@react-navigation/native';
+import { View, ActivityIndicator } from 'react-native'; 
+import { useAuth } from '../context/AuthContext'; 
 
-// Import Screens
+// Screens
 import LoginScreen from '../screens/LoginScreen';
-import SignupScreen from '../screens/SignupScreen'; // 👈 Imported here
+import SignupScreen from '../screens/SignupScreen';
 import HomeScreen from '../screens/HomeScreen';
 import FoodScreen from '../screens/FoodScreen';
-import RideScreen from '../screens/RideScreen';
+import RestaurantDetailScreen from '../screens/RestaurantDetailScreen';
 import CartScreen from '../screens/CartScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import SellerScreen from '../screens/SellerScreen';
 import TrackOrderScreen from '../screens/TrackOrderScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
-import MenuScreen from '../screens/MenuScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import RideScreen from '../screens/RideScreen';
+import RideHistoryScreen from '../screens/RideHistoryScreen';
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
-
-function MainTabs() {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: '#FF9900',
-        tabBarInactiveTintColor: 'gray',
-        tabBarIcon: ({ color, size }) => {
-          let iconName;
-          if (route.name === 'Home') iconName = 'home';
-          else if (route.name === 'Food') iconName = 'fast-food';
-          else if (route.name === 'Ride') iconName = 'car';
-          else if (route.name === 'Cart') iconName = 'cart';
-          else if (route.name === 'Seller') iconName = 'briefcase';
-          else if (route.name === 'Profile') iconName = 'person';
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
-    >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Food" component={FoodScreen} />
-      <Tab.Screen name="Ride" component={RideScreen} />
-      <Tab.Screen name="Cart" component={CartScreen} />
-      <Tab.Screen name="Seller" component={SellerScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-    </Tab.Navigator>
-  );
-}
+const Stack = createStackNavigator();
 
 export default function AppNavigator() {
+  const { user, loading } = useAuth(); 
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#FF9900" />
+      </View>
+    );
+  }
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Signup" component={SignupScreen} />
-      <Stack.Screen name="MainTabs" component={MainTabs} />
-      <Stack.Screen name="Menu" component={MenuScreen} />
-      <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
-      <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
-      <Stack.Screen name="RideHistory" component={RideHistoryScreen} />
-       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-    </Stack.Navigator>
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {user ? (
+          // 🔓 LOGGED IN
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Food" component={FoodScreen} />
+            <Stack.Screen name="RestaurantDetail" component={RestaurantDetailScreen} />
+            <Stack.Screen name="Cart" component={CartScreen} />
+            <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
+            <Stack.Screen name="History" component={OrderHistoryScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+            <Stack.Screen name="Ride" component={RideScreen} />
+            <Stack.Screen name="RideHistory" component={RideHistoryScreen} />
+          </>
+        ) : (
+          // 🔒 LOGGED OUT
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Signup" component={SignupScreen} />
+          </>
+        )}
+      </Stack.Navigator> 
+    </NavigationContainer>
   );
 }
