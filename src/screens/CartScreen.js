@@ -1,109 +1,99 @@
 import React, { useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { formatPrice } from '../helpers/currency'; 
-import { useStripe } from '@stripe/stripe-react-native'; // 👈 IMPORT STRIPE
+import { useStripe } from '@stripe/stripe-react-native'; 
+import { useOrder } from '../context/OrderContext';
+import { useWallet } from '../context/WalletContext'; // 👈 1. IMPORT WALLET
+
+const formatPrice = (price) => `₹${price}`;
 
 export default function CartScreen({ navigation }) {
-  const { cartItems, removeFromCart, clearCart, totalPrice } = useCart();
+  const context = useCart();
+  const cartItems = context.cart || context.cartItems || []; 
+  const { removeFromCart, clearCart } = context;
+  
   const { user } = useAuth();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe(); // 👈 STRIPE HOOKS
+  const { initPaymentSheet, presentPaymentSheet } = useStripe(); 
+  const { startOrder } = useOrder();
+  
+  // 👇 2. GET WALLET DATA
+  const { balance, payFromWallet } = useWallet();
+
   const [loading, setLoading] = useState(false);
 
-  // 👇 1. ASK SERVER FOR PAYMENT KEY
+  // Calculate Total
+  const totalPrice = cartItems.reduce((sum, item) => sum + (Number(item.price) * (item.quantity || 1)), 0);
+
+  // --- STRIPE LOGIC (For Credit Card) ---
   const fetchPaymentIntent = async () => {
     try {
       const response = await fetch("https://yumigo-api.onrender.com/api/payments/intents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: totalPrice }) // Send total (e.g. 170)
+        body: JSON.stringify({ amount: totalPrice }) 
       });
-      
       const json = await response.json();
       return json.clientSecret;
-
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Could not talk to the bank (Server error).");
+      Alert.alert("Error", "Server error");
       return null;
     }
   };
 
-  // 👇 2. HANDLE THE CHECKOUT PROCESS
-  const handleCheckout = async () => {
-    if (!user) {
-      Alert.alert("Login Required", "Please login to place an order.");
-      return;
-    }
-
+  const handleCardCheckout = async () => {
+    if (!user) { Alert.alert("Login Required", "Please login."); return; }
     setLoading(true);
 
-    // Step A: Get Key from Server
     const clientSecret = await fetchPaymentIntent();
-    if (!clientSecret) {
-        setLoading(false);
-        return;
-    }
+    if (!clientSecret) { setLoading(false); return; }
 
-    // Step B: Prepare the Payment Sheet
     const { error: initError } = await initPaymentSheet({
       merchantDisplayName: "Yumigo App",
       paymentIntentClientSecret: clientSecret,
     });
+    if (initError) { setLoading(false); return; }
 
-    if (initError) {
-      Alert.alert("Error", "Could not open payment sheet.");
-      setLoading(false);
-      return;
-    }
-
-    // Step C: Open the Sheet!
     const { error: paymentError } = await presentPaymentSheet();
-
     if (paymentError) {
       Alert.alert("Payment Failed", paymentError.message);
       setLoading(false);
     } else {
-      // ✅ PAYMENT SUCCESS! NOW PLACE ORDER
-      await placeOrder();
+      await placeOrder('Card'); // Pass 'Card' as method
     }
   };
 
-  // 👇 3. SAVE ORDER TO DATABASE (Only runs after payment)
-  const placeOrder = async () => {
-    try {
-      const orderPayload = {
-        userId: user._id,
-        items: cartItems.map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            price: Number(item.price),
-            image: item.image
-        })),
-        totalPrice: totalPrice,
-        status: "Preparing"
-      };
+  // --- 👇 NEW WALLET LOGIC ---
+  const handleWalletCheckout = async () => {
+    if (!user) { Alert.alert("Login Required", "Please login."); return; }
+    
+    // 1. Check if user has enough money
+    if (balance < totalPrice) {
+        Alert.alert("Insufficient Funds", "Please add money to your wallet via Profile.");
+        return;
+    }
 
-      const response = await fetch("https://yumigo-api.onrender.com/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderPayload)
-      });
+    // 2. Attempt Payment
+    const success = payFromWallet(totalPrice);
+    
+    if (success) {
+        await placeOrder('Wallet'); // Pass 'Wallet' as method
+    } else {
+        Alert.alert("Error", "Wallet payment failed.");
+    }
+  };
 
-      const json = await response.json();
-
-      if (json.success) {
-        Alert.alert("Success", "Payment Received & Order Placed! 🍔");
-        clearCart();
-        navigation.navigate('TrackOrder');
-      } else {
-        Alert.alert("Order Failed", json.error || "Something went wrong saving the order.");
-      }
-
+  // --- COMMON ORDER LOGIC ---
+  const placeOrder = async (method) => {
+    try { 
+      startOrder(cartItems, totalPrice);
+      Alert.alert("Success", `Paid via ${method}! Order Placed 🚀`);
+      clearCart();
+      navigation.navigate('TrackOrder'); 
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Payment went through, but order saving failed.");
+      Alert.alert("Error", "Order saving failed.");
     } finally {
       setLoading(false);
     }
@@ -124,21 +114,16 @@ export default function CartScreen({ navigation }) {
       
       <FlatList
         data={cartItems}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item, index) => (item._id || item.id || index).toString() + index}
         renderItem={({ item }) => (
           <View style={styles.itemCard}>
-            <Image source={{ uri: item.image }} style={styles.image} />
+            <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.image} />
             <View style={styles.info}>
               <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.mathText}>
-                {formatPrice(item.price)} x {item.quantity}
-              </Text>
+              <Text style={styles.mathText}>{formatPrice(item.price)} x {item.quantity}</Text>
               <Text style={styles.price}>{formatPrice(item.price * item.quantity)}</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.removeButton} 
-              onPress={() => removeFromCart(item._id)}
-            >
+            <TouchableOpacity style={styles.removeButton} onPress={() => removeFromCart(item.id || item._id)}>
               <Text style={styles.removeText}>Remove</Text>
             </TouchableOpacity>
           </View>
@@ -150,18 +135,33 @@ export default function CartScreen({ navigation }) {
           <Text style={styles.totalLabel}>Total:</Text>
           <Text style={styles.totalAmount}>{formatPrice(totalPrice)}</Text>
         </View>
+
+        {/* 👇 WALLET SECTION */}
+        <View style={styles.walletSection}>
+            <Text style={styles.walletText}>Wallet Balance: <Text style={{fontWeight: 'bold', color: 'green'}}>₹{balance}</Text></Text>
+            
+            {/* Show Pay with Wallet Button ONLY if enough balance */}
+            {balance >= totalPrice ? (
+                <TouchableOpacity 
+                    style={[styles.payButton, styles.walletBtn]} 
+                    onPress={handleWalletCheckout}
+                >
+                    <Text style={styles.payText}>💳 Pay with Wallet</Text>
+                </TouchableOpacity>
+            ) : (
+                <Text style={styles.lowBalanceText}>Low Balance (Add money in Profile)</Text>
+            )}
+        </View>
         
+        {/* STRIPE CARD BUTTON (Always Visible as Backup) */}
         <TouchableOpacity 
-            style={[styles.checkoutButton, loading && { opacity: 0.7 }]} 
-            onPress={handleCheckout}
+            style={[styles.payButton, styles.cardBtn, loading && { opacity: 0.7 }]} 
+            onPress={handleCardCheckout}
             disabled={loading}
         >
-          {loading ? (
-             <ActivityIndicator color="#fff" />
-          ) : (
-             <Text style={styles.checkoutText}>💳 Pay & Checkout</Text>
-          )}
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.payText}>🏦 Pay with Card (Stripe)</Text>}
         </TouchableOpacity>
+
       </View>
     </View>
   );
@@ -181,10 +181,18 @@ const styles = StyleSheet.create({
   price: { fontSize: 16, fontWeight: 'bold', color: 'green', marginTop: 4 },
   removeButton: { backgroundColor: '#ffdede', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   removeText: { color: 'red', fontWeight: 'bold', fontSize: 12 },
+  
   footer: { marginTop: 20, backgroundColor: '#fff', padding: 20, borderRadius: 15, elevation: 5 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   totalLabel: { fontSize: 20, fontWeight: 'bold' },
   totalAmount: { fontSize: 20, fontWeight: 'bold', color: 'green' },
-  checkoutButton: { backgroundColor: '#FF9900', padding: 15, borderRadius: 10, alignItems: 'center' },
-  checkoutText: { color: '#fff', fontSize: 18, fontWeight: 'bold' }
+
+  walletSection: { marginBottom: 15, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  walletText: { fontSize: 16, marginBottom: 10, color: '#555' },
+  lowBalanceText: { color: 'red', fontStyle: 'italic', fontSize: 12 },
+
+  payButton: { padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 10 },
+  walletBtn: { backgroundColor: '#111' }, // Black for Wallet
+  cardBtn: { backgroundColor: '#FF9900' }, // Orange for Stripe
+  payText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });

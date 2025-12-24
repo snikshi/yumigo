@@ -1,26 +1,59 @@
 import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View, ActivityIndicator } from 'react-native'; 
-import { useAuth } from '../context/AuthContext'; 
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import HomeScreen from '../screens/HomeScreen';
-import FoodScreen from '../screens/FoodScreen';
-import RestaurantDetailScreen from '../screens/RestaurantDetailScreen';
 import CartScreen from '../screens/CartScreen';
-import TrackOrderScreen from '../screens/TrackOrderScreen';
-import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import RestaurantDetailScreen from '../screens/RestaurantDetailScreen';
+import OrderHistoryScreen from '../screens/OrderHistoryScreen'; 
+import TrackOrderScreen from '../screens/TrackOrderScreen'; 
+import FoodScreen from '../screens/FoodScreen';
 import RideScreen from '../screens/RideScreen';
 import RideHistoryScreen from '../screens/RideHistoryScreen';
+import SellerScreen from '../screens/SellerScreen'; // 👈 Seller Screen Imported
 
 const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
+// 🏠 1. The Bottom Tabs
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      initialRouteName="Home" // 👈 Forces app to open Home first
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarIcon: ({ color, size }) => {
+          let iconName;
+          if (route.name === 'Home') iconName = 'home';
+          else if (route.name === 'Cart') iconName = 'cart';
+          else if (route.name === 'Profile') iconName = 'person';
+          else if (route.name === 'Seller') iconName = 'restaurant'; // 👈 Icon for Seller
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#FF9900',
+        tabBarInactiveTintColor: 'gray',
+      })}
+    >
+      {/* 👇 The order matters! Home is first. */}
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Cart" component={CartScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Seller" component={SellerScreen} /> 
+    </Tab.Navigator>
+  );
+}
+
+// 🔀 2. The Main Navigator
 export default function AppNavigator() {
-  const { user, loading } = useAuth(); 
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -30,30 +63,28 @@ export default function AppNavigator() {
     );
   }
 
-  // 👇 NO NavigationContainer here (App.js handles it!)
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user ? (
-        // 🔓 LOGGED IN
+        // 🔓 IF LOGGED IN
         <>
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="Food" component={FoodScreen} />
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          
           <Stack.Screen name="RestaurantDetail" component={RestaurantDetailScreen} />
-          <Stack.Screen name="Cart" component={CartScreen} />
-          <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
-          <Stack.Screen name="History" component={OrderHistoryScreen} />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="History" component={OrderHistoryScreen} />
+          <Stack.Screen name="TrackOrder" component={TrackOrderScreen} /> 
+          <Stack.Screen name="Food" component={FoodScreen} />
           <Stack.Screen name="Ride" component={RideScreen} />
           <Stack.Screen name="RideHistory" component={RideHistoryScreen} />
         </>
       ) : (
-        // 🔒 LOGGED OUT
+        // 🔒 IF LOGGED OUT
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
         </>
       )}
-    </Stack.Navigator> 
+    </Stack.Navigator>
   );
 }

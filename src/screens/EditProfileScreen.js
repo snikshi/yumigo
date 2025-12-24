@@ -1,95 +1,87 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { useAuth } from '../context/AuthContext';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
 
 export default function EditProfileScreen({ navigation }) {
-  const { user, setUser } = useAuth(); // We need setUser to update the app memory
+  const { user, updateUser } = useAuth();
+
+  // Load existing data into inputs
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [loading, setLoading] = useState(false);
+  const [phone, setPhone] = useState(user?.phone || '');
 
-  const handleUpdate = async () => {
-    console.log("DEBUG: User ID is:", user?._id || user?.id);
-    setLoading(true);
-    try {
-      // ⚠️ USE YOUR URL (yumigo-api)
-      const response = await fetch("https://yumigo-api.onrender.com/api/auth/update", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-            // 👇 TRY BOTH ID TYPES TO BE SAFE
-            userId: user._id || user.id, 
-            name: name,
-            email: email
-        })
-      });
-
-      const json = await response.json();
-
-      if (json.success) {
-        Alert.alert("Success", "Profile Updated! ✅");
-        
-        // 🔄 Update the Global State so the new name shows everywhere immediately
-        // We keep the old token, just update user info
-        setUser({ ...user, name: json.user.name, email: json.user.email }); 
-        
-        navigation.goBack();
-      } else {
-        Alert.alert("Error", json.error || "Update failed");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Server connection failed");
-    } finally {
-      setLoading(false);
+  const handleSave = () => {
+    if (name.length === 0) {
+        Alert.alert("Error", "Name cannot be empty");
+        return;
     }
+
+    // 👇 Call the new function from Context
+    updateUser({ name, email, phone });
+    
+    Alert.alert("Success", "Profile Updated! ✅");
+    navigation.goBack(); // Go back to Profile Screen
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Edit Profile</Text>
+    <SafeAreaView style={styles.container}>
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Edit Profile</Text>
+        <View style={{width: 24}} /> 
+      </View>
 
-      {/* Name Input */}
-      <View style={styles.inputContainer}>
-        <Ionicons name="person-outline" size={20} color="#666" style={styles.icon} />
+      <View style={styles.form}>
+        
+        <Text style={styles.label}>Full Name</Text>
         <TextInput 
             style={styles.input} 
             value={name} 
             onChangeText={setName} 
-            placeholder="Full Name"
+            placeholder="Enter your name"
         />
-      </View>
 
-      {/* Email Input */}
-      <View style={styles.inputContainer}>
-        <Ionicons name="mail-outline" size={20} color="#666" style={styles.icon} />
+        <Text style={styles.label}>Email Address</Text>
         <TextInput 
             style={styles.input} 
             value={email} 
             onChangeText={setEmail} 
-            placeholder="Email Address"
+            placeholder="Enter your email"
             keyboardType="email-address"
         />
-      </View>
 
-      {/* Save Button */}
-      <TouchableOpacity style={styles.saveBtn} onPress={handleUpdate} disabled={loading}>
-        {loading ? (
-            <ActivityIndicator color="white" />
-        ) : (
-            <Text style={styles.btnText}>Save Changes</Text>
-        )}
-      </TouchableOpacity>
-    </View>
+        <Text style={styles.label}>Phone Number</Text>
+        <TextInput 
+            style={styles.input} 
+            value={phone} 
+            onChangeText={setPhone} 
+            placeholder="Enter phone number"
+            keyboardType="phone-pad"
+        />
+
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+            <Text style={styles.saveText}>Save Changes</Text>
+        </TouchableOpacity>
+
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#fff' },
-  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 30, textAlign: 'center' },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f0f0', borderRadius: 10, marginBottom: 15, paddingHorizontal: 15, height: 50 },
-  icon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 16 },
-  saveBtn: { backgroundColor: '#FF9900', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  btnText: { color: 'white', fontWeight: 'bold', fontSize: 16 }
+  container: { flex: 1, backgroundColor: '#fff' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 50, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  title: { fontSize: 20, fontWeight: 'bold' },
+  
+  form: { padding: 20, marginTop: 10 },
+  label: { fontSize: 14, color: '#666', marginBottom: 8, fontWeight: 'bold' },
+  input: { backgroundColor: '#f9f9f9', padding: 15, borderRadius: 10, marginBottom: 20, borderWidth: 1, borderColor: '#eee', fontSize: 16 },
+  
+  saveBtn: { backgroundColor: '#000', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  saveText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });

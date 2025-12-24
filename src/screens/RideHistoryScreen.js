@@ -1,105 +1,127 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
-import { useAuth } from '../context/AuthContext';
+import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useWallet } from '../context/WalletContext'; // 👈 1. Import Wallet
 
-export default function RideHistoryScreen() {
-  const [rides, setRides] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+export default function RideHistoryScreen({ route, navigation }) {
+  const { vehicle, dropLocation } = route.params || {}; 
+  const { payFromWallet } = useWallet(); // 👈 2. Get Payment Function
+  
+  const [status, setStatus] = useState('Searching'); 
+  const [driver, setDriver] = useState(null);
+  const [hasPaid, setHasPaid] = useState(false); // 👈 3. Prevent Double Payment
 
-  const fetchRides = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      // ⚠️ USE YOUR CORRECT URL (yumigo-api)
-      const response = await fetch(`https://yumigo-api.onrender.com/api/rides/user/${user._id}`);
-      const json = await response.json();
-      setRides(json);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Simulate Ride
   useEffect(() => {
-    fetchRides();
+    setTimeout(() => {
+        setDriver({ name: 'Raju Bhai', rating: 4.8, plate: 'TS-09-AB-1234', phone: '9876543210' });
+        setStatus('Arriving');
+    }, 3000);
+
+    setTimeout(() => {
+        setStatus('On Trip');
+    }, 8000);
+
+    setTimeout(() => {
+        setStatus('Completed');
+    }, 15000);
   }, []);
 
-  const renderRide = ({ item }) => (
-    <View style={styles.card}>
-      {/* Header: Date & Price */}
-      <View style={styles.header}>
-        <Text style={styles.date}>{new Date(item.createdAt).toDateString()}</Text>
-        <Text style={styles.price}>₹{item.price}</Text>
-      </View>
+  // 👇 4. Handle Automatic Payment when Completed
+  useEffect(() => {
+    if (status === 'Completed' && !hasPaid) {
+        const success = payFromWallet(vehicle.price);
+        if (success) {
+            setHasPaid(true);
+            Alert.alert("Ride Completed", `You reached ${dropLocation}. ₹${vehicle.price} paid from Wallet. ✅`);
+        } else {
+            Alert.alert("Payment Error", "Could not deduct from wallet.");
+        }
+    }
+  }, [status]);
 
-      {/* Driver Info */}
-      <View style={styles.driverRow}>
-        <Ionicons name="car-sport" size={20} color="#333" />
-        <Text style={styles.driverText}>{item.driverName} • {item.carNumber}</Text>
-      </View>
-
-      <View style={styles.divider} />
-
-      {/* Route Info */}
-      <View style={styles.locationRow}>
-        <Ionicons name="ellipse" size={12} color="green" />
-        <Text style={styles.address} numberOfLines={1}>{item.pickup.address || "Current Location"}</Text>
-      </View>
-      
-      <View style={styles.line} />
-      
-      <View style={styles.locationRow}>
-        <Ionicons name="location" size={12} color="red" />
-        <Text style={styles.address} numberOfLines={1}>{item.drop.address}</Text>
-      </View>
-
-      {/* Status Badge */}
-      <View style={styles.statusContainer}>
-          <Text style={styles.statusText}>{item.status || "Completed"}</Text>
-      </View>
-    </View>
-  );
+  if (!vehicle) return <View style={styles.center}><Text>No ride details.</Text></View>;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>🚕 My Rides</Text>
+    <SafeAreaView style={styles.container}>
       
-      {loading ? (
-        <ActivityIndicator size="large" color="black" style={{marginTop: 50}} />
+      {/* MAP */}
+      <View style={styles.mapContainer}>
+        <Image source={{ uri: 'https://i.imgur.com/8J5f8lq.png' }} style={styles.mapImage} />
+        
+        <View style={styles.statusBadge}>
+            <Text style={styles.statusText}>
+                {status === 'Searching' ? '🔍 Finding Driver...' :
+                 status === 'Arriving' ? '🚖 Driver Arriving (2 min)' :
+                 status === 'On Trip' ? '🛣️ On the way to ' + dropLocation :
+                 '✅ Ride Completed'}
+            </Text>
+        </View>
+
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('MainTabs')}>
+            <Ionicons name="close" size={24} color="#000" />
+        </TouchableOpacity>
+      </View>
+
+      {/* DRIVER CARD */}
+      {driver ? (
+        <View style={styles.driverCard}>
+            <View style={styles.driverRow}>
+                <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3048/3048122.png' }} style={styles.driverIcon} />
+                <View style={{flex: 1}}>
+                    <Text style={styles.driverName}>{driver.name} ⭐ {driver.rating}</Text>
+                    <Text style={styles.plate}>{driver.plate}</Text>
+                    <Text style={styles.vehicleName}>{vehicle.name}</Text>
+                </View>
+                <View style={styles.callBtn}>
+                    <Ionicons name="call" size={22} color="green" />
+                </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            {status === 'Completed' ? (
+                <View style={{alignItems: 'center'}}>
+                    <Text style={{color: 'green', fontWeight: 'bold', fontSize: 18, marginBottom: 10}}>
+                        Paid ₹{vehicle.price} ✅
+                    </Text>
+                    <TouchableOpacity style={styles.payBtn} onPress={() => navigation.navigate('MainTabs')}>
+                        <Text style={styles.payText}>Rate & Close</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : (
+                <Text style={styles.otp}>OTP: 4589</Text>
+            )}
+        </View>
       ) : (
-        <FlatList
-          data={rides}
-          keyExtractor={(item) => item._id}
-          renderItem={renderRide}
-          refreshControl={
-            <RefreshControl refreshing={loading} onRefresh={fetchRides} />
-          }
-          ListEmptyComponent={
-            <Text style={styles.empty}>No rides yet. Time to go somewhere! 🌍</Text>
-          }
-        />
+        <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#000" />
+            <Text style={{marginTop: 10, fontWeight: 'bold'}}>Connecting to nearby drivers...</Text>
+        </View>
       )}
-    </View>
+
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f2', padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  card: { backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 15, elevation: 2 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  date: { color: '#888', fontSize: 14 },
-  price: { fontWeight: 'bold', fontSize: 18, color: '#333' },
-  driverRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  driverText: { marginLeft: 10, fontWeight: 'bold', color: '#555' },
-  divider: { height: 1, backgroundColor: '#eee', marginVertical: 8 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 2 },
-  line: { height: 10, width: 1, backgroundColor: '#ccc', marginLeft: 5.5, marginVertical: 2 },
-  address: { marginLeft: 10, color: '#444', flex: 1 },
-  statusContainer: { alignSelf: 'flex-start', backgroundColor: '#eef6ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, marginTop: 10 },
-  statusText: { color: '#007AFF', fontSize: 12, fontWeight: 'bold' },
-  empty: { textAlign: 'center', marginTop: 50, color: '#aaa', fontSize: 16 }
+  container: { flex: 1, backgroundColor: '#fff' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  mapContainer: { flex: 1, backgroundColor: '#eee', position: 'relative' },
+  mapImage: { width: '100%', height: '100%', opacity: 0.8 },
+  backBtn: { position: 'absolute', top: 50, left: 20, backgroundColor: '#fff', padding: 8, borderRadius: 20, elevation: 5 },
+  statusBadge: { position: 'absolute', top: 50, alignSelf: 'center', backgroundColor: '#000', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, elevation: 5 },
+  statusText: { color: '#fff', fontWeight: 'bold' },
+  driverCard: { backgroundColor: '#fff', padding: 20, borderTopLeftRadius: 25, borderTopRightRadius: 25, elevation: 20 },
+  loadingCard: { backgroundColor: '#fff', padding: 40, borderTopLeftRadius: 25, borderTopRightRadius: 25, alignItems: 'center', height: 200 },
+  driverRow: { flexDirection: 'row', alignItems: 'center' },
+  driverIcon: { width: 50, height: 50, borderRadius: 25, marginRight: 15, backgroundColor: '#eee' },
+  driverName: { fontSize: 18, fontWeight: 'bold' },
+  plate: { color: '#666', fontSize: 14, fontWeight: 'bold', marginTop: 2 },
+  vehicleName: { color: '#888', fontSize: 12 },
+  callBtn: { padding: 10, backgroundColor: '#e8f5e9', borderRadius: 25 },
+  divider: { height: 1, backgroundColor: '#eee', marginVertical: 15 },
+  otp: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', letterSpacing: 5 },
+  payBtn: { backgroundColor: '#000', padding: 15, borderRadius: 10, alignItems: 'center', width: '100%' },
+  payText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
 });

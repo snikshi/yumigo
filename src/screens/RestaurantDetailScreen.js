@@ -3,22 +3,30 @@ import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, Alert } from
 import { useCart } from '../context/CartContext'; 
 
 export default function RestaurantDetailScreen({ route, navigation }) {
-  // 1. Safe Data Loading with Defaults
+  // 1. Safe Data Loading
   const params = route.params || {};
   const restaurant = params.restaurant || {};
   
-  // 2. Get Cart Tools
-  const { addToCart, cart } = useCart(); 
+  // 2. Safe Cart Loading (This fixes the "cart.length" crash)
+  const cartContext = useCart();
+  const addToCart = cartContext?.addToCart || (() => Alert.alert("Error", "Cart system not ready"));
+  const cart = cartContext?.cart || []; // 👈 If cart is missing, default to empty list []
 
-  // 3. Ultra-Safe Menu Loading
-  // If restaurant.menu is missing, use an empty array []
+  // 3. Safe Menu Loading (This fixes the "menu.length" crash)
   const menu = restaurant.menu || []; 
+  // 👇 FAKE MENU (Delete this later when Database has real food)
+  if (menu.length === 0) {
+    menu.push(
+      { id: '101', name: 'Test Burger', price: 150, description: 'Juicy test burger' },
+      { id: '102', name: 'Test Fries', price: 90, description: 'Crispy test fries' },
+      { id: '103', name: 'Test Coke', price: 50, description: 'Chilled cola' }
+    );
+  }
 
-  // 4. Render a single menu item
   const renderItem = ({ item }) => (
     <View style={styles.menuItem}>
       <View style={{ flex: 1 }}>
-        <Text style={styles.dishName}>{item?.name || "Unknown Item"}</Text>
+        <Text style={styles.dishName}>{item?.name || "Item"}</Text>
         <Text style={styles.dishPrice}>₹{item?.price || 0}</Text>
         <Text style={styles.dishDesc}>{item?.description || ""}</Text>
       </View>
@@ -26,7 +34,7 @@ export default function RestaurantDetailScreen({ route, navigation }) {
         style={styles.addBtn}
         onPress={() => {
             addToCart(item, restaurant);
-            Alert.alert("Added", `${item.name} added to cart! 🛒`);
+            Alert.alert("Added", "Item added to cart! 🛒");
         }}
       >
         <Text style={styles.addText}>ADD</Text>
@@ -36,26 +44,25 @@ export default function RestaurantDetailScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header Image */}
       <Image 
         source={{ uri: restaurant.image || 'https://via.placeholder.com/300' }} 
         style={styles.image} 
       />
       
-      {/* Restaurant Info */}
       <View style={styles.infoContainer}>
-        <Text style={styles.name}>{restaurant.name || "Unknown Restaurant"}</Text>
+        <Text style={styles.name}>{restaurant.name || "Restaurant"}</Text>
         <Text style={styles.details}>
-          {restaurant.cuisine || "Food"} • ⭐ {restaurant.rating || "4.0"} • {restaurant.time || "30"} mins
+            {restaurant.cuisine || "Food"} • ⭐ {restaurant.rating || "4.5"}
         </Text>
       </View>
 
-      {/* Menu List */}
+      {/* 👇 SAFE LENGTH CHECK */}
       <Text style={styles.menuTitle}>Menu ({menu.length} items)</Text>
       
       <FlatList
         data={menu}
-        keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
+        // 👇 Use index as a fallback to silence the warning
+keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 100 }}
         ListEmptyComponent={
@@ -65,7 +72,7 @@ export default function RestaurantDetailScreen({ route, navigation }) {
         }
       />
 
-      {/* View Cart Button */}
+      {/* 👇 SAFE CART CHECK */}
       {cart.length > 0 && (
           <TouchableOpacity style={styles.viewCartBtn} onPress={() => navigation.navigate('Cart')}>
               <Text style={styles.viewCartText}>View Cart ({cart.length})</Text>

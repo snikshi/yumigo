@@ -1,138 +1,181 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, SafeAreaView, StatusBar } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, TextInput, Modal, SafeAreaView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useWallet } from '../context/WalletContext';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
+  const { balance, transactions, addMoney } = useWallet();
+  
+  const [modalVisible, setModalVisible] = useState(false);
+  const [amountInput, setAmountInput] = useState('');
 
-  const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Logout", onPress: logout, style: 'destructive' }
-    ]);
+  const handleAddMoney = () => {
+    addMoney(amountInput);
+    setAmountInput('');
+    setModalVisible(false);
   };
 
- // Change the function definition to accept 'onPress'
-  const renderOption = (icon, title, subtitle, onPress) => (
-    <TouchableOpacity style={styles.optionRow} onPress={onPress}> 
-      <View style={styles.iconContainer}>
-        <Ionicons name={icon} size={22} color="#444" />
-      </View>
-      <View style={styles.optionTextContainer}>
-        <Text style={styles.optionTitle}>{title}</Text>
-        {subtitle && <Text style={styles.optionSubtitle}>{subtitle}</Text>}
-      </View>
-      <Ionicons name="chevron-forward" size={20} color="#ccc" />
-    </TouchableOpacity>
-    
-  );
+  // 👇 SAFETY CHECK: Ensure we only render Strings
+  const safeName = typeof user?.name === 'string' ? user.name : "Guest User";
+  const safeEmail = typeof user?.email === 'string' ? user.email : "No Email";
+  const safeBalance = typeof balance === 'number' ? balance.toLocaleString('en-IN') : '0';
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* 1. HEADER PROFILE */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+        
+        {/* HEADER */}
         <View style={styles.header}>
           <Image 
             source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }} 
             style={styles.avatar} 
           />
           <View>
-            <Text style={styles.name}>{user?.name || "Test User"}</Text>
-           <Text style={styles.email}>{user?.email || "test@test.com"}</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
-                <Text style={{color: '#FF9900', fontWeight: 'bold', marginTop: 5}}>Edit Profile</Text>
-            </TouchableOpacity>
+              {/* 👇 Using Safe Variables */}
+              <Text style={styles.name}>{safeName}</Text>
+              <Text style={styles.email}>{safeEmail}</Text>
+              
+              <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
+                  <Text style={styles.editLink}>Edit Profile</Text>
+              </TouchableOpacity>
           </View>
         </View>
 
-        {/* 2. WALLET CARD */}
+        {/* WALLET CARD */}
         <View style={styles.walletCard}>
-            <View>
-                <Text style={styles.walletLabel}>Yumigo Money</Text>
-                <Text style={styles.walletBalance}>₹ 850.00</Text>
+          <View style={{flex: 1}}>
+              <Text style={styles.walletLabel}>YUMIGO MONEY</Text>
+              <Text style={styles.balance} numberOfLines={1} adjustsFontSizeToFit>
+                ₹ {safeBalance}
+              </Text>
+          </View>
+          <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
+              <Text style={styles.addBtnText}>+ Add Money</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* MENU */}
+        <Text style={styles.sectionTitle}>My Account</Text>
+        
+        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('History')}>
+            <View style={styles.menuIconBox}>
+                <Ionicons name="receipt-outline" size={22} color="#333" />
             </View>
-            <TouchableOpacity style={styles.addMoneyBtn}>
-                <Text style={styles.addMoneyText}>+ Add Money</Text>
-            </TouchableOpacity>
-        </View>
-
-        {/* 3. MENU OPTIONS */}
-        <View style={styles.section}>
-            <Text style={styles.sectionTitle}>MY ACCOUNT</Text>
-            {/* 1.Food Orders */}
-            {renderOption("receipt-outline", "Your Orders", "Track ongoing orders", () => navigation.navigate('History'))}
-           {/* 2. My Rides (new!) */}
-             {renderOption("receipt-outline", "My Rides", "Track ongoing rides", () => navigation.navigate('RideHistory'))}
-            {/* 3. Favorites */}
-            {renderOption("heart-outline", "Favorite Restaurants", "3 saved places", () => console.log("Favorites clicked"))}
-           {/* payments and refunds */}
-            {renderOption("card-outline", "Payments & Refunds", "Manage cards", () => console.log("Payments & Refunds clicked"))}
-        </View>
-       
-
-        <View style={styles.section}>
-            <Text style={styles.sectionTitle}>SETTINGS</Text>
-            {renderOption("notifications-outline", "Notifications")}
-            {renderOption("globe-outline", "Language", "English")}
-            {renderOption("help-circle-outline", "Help & Support")}
-        </View>
-
-
-    
-
-        {/* 4. LOGOUT */}
-        {/* 👇 LOGOUT BUTTON */}
-        <TouchableOpacity 
-          style={styles.logoutBtn} 
-          onPress={() => {
-            logout(); // Clear memory
-            // The AuthContext usually handles navigation, but to be safe:
-            navigation.reset({ index: 0, routes: [{ name: 'Login' }] }); 
-          }}
-        >
-            <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
-            <Text style={styles.logoutText}>Log Out</Text>
+            <View style={styles.menuContent}>
+                <Text style={styles.menuLabel}>Your Orders</Text>
+                <Text style={styles.menuSubtext}>Track ongoing orders</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
         </TouchableOpacity>
 
-        <Text style={styles.version}>Yumigo v2.0 (Pro Build)</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('RideHistory')}>
+            <View style={styles.menuIconBox}>
+                <Ionicons name="car-sport-outline" size={22} color="#333" />
+            </View>
+            <View style={styles.menuContent}>
+                <Text style={styles.menuLabel}>Your Rides</Text>
+                <Text style={styles.menuSubtext}>Ride history & details</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+        </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Settings</Text>
+        
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert("Settings", "Coming Soon")}>
+            <View style={styles.menuIconBox}>
+                <Ionicons name="notifications-outline" size={22} color="#333" />
+            </View>
+            <View style={styles.menuContent}>
+                <Text style={styles.menuLabel}>Notifications</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+        </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Recent Transactions</Text>
+        {transactions.slice(0, 3).map((item) => (
+            <View key={item.id} style={styles.transactionRow}>
+                <View style={styles.iconBox}>
+                    <Ionicons 
+                        name={item.type === 'credit' ? "arrow-down" : "arrow-up"} 
+                        size={18} 
+                        color={item.type === 'credit' ? "green" : "red"} 
+                    />
+                </View>
+                <View style={{flex: 1, marginLeft: 15}}>
+                    <Text style={styles.transTitle}>{item.title}</Text>
+                    <Text style={styles.transDate}>{item.date}</Text>
+                </View>
+                <Text style={[styles.transAmount, { color: item.type === 'credit' ? 'green' : 'red' }]}>
+                    {item.type === 'credit' ? '+' : '-'} ₹{item.amount}
+                </Text>
+            </View>
+        ))}
+
+        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+          <Text style={styles.logoutText}>Log Out</Text>
+        </TouchableOpacity>
+
       </ScrollView>
+
+      <Modal visible={modalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Add Money to Wallet</Text>
+                <TextInput 
+                    style={styles.input}
+                    placeholder="Enter Amount"
+                    keyboardType="numeric"
+                    value={amountInput}
+                    onChangeText={setAmountInput}
+                />
+                <View style={styles.modalButtons}>
+                    <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelBtn}>
+                        <Text style={{color: 'red'}}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleAddMoney} style={styles.confirmBtn}>
+                        <Text style={{color: '#fff', fontWeight: 'bold'}}>Add Money</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
-  scrollContent: { paddingBottom: 30 },
-  
-  // Header
-  header: { flexDirection: 'row', padding: 20, alignItems: 'center', backgroundColor: '#fff', marginBottom: 15 },
-  avatar: { width: 70, height: 70, borderRadius: 35, marginRight: 15, backgroundColor: '#eee' },
-  name: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-  email: { color: '#888', marginBottom: 5 },
-  editBtn: { alignSelf: 'flex-start' },
-  editBtnText: { color: '#FF9900', fontWeight: 'bold' },
-
-  // Wallet
-  walletCard: { backgroundColor: '#333', marginHorizontal: 20, borderRadius: 15, padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25, elevation: 5 },
-  walletLabel: { color: '#aaa', fontSize: 12, textTransform: 'uppercase', marginBottom: 4 },
-  walletBalance: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
-  addMoneyBtn: { backgroundColor: '#fff', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
-  addMoneyText: { fontWeight: 'bold', color: '#333', fontSize: 12 },
-
-  // Options
-  section: { backgroundColor: '#fff', marginBottom: 15, paddingVertical: 10 },
-  sectionTitle: { fontSize: 13, color: '#aaa', fontWeight: 'bold', paddingHorizontal: 20, marginBottom: 10, marginTop: 5 },
-  optionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
-  iconContainer: { width: 40, alignItems: 'center' },
-  optionTextContainer: { flex: 1 },
-  optionTitle: { fontSize: 16, color: '#333' },
-  optionSubtitle: { fontSize: 12, color: '#999', marginTop: 2 },
-
-  // Logout
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 40, marginBottom: 20, padding: 15, backgroundColor: '#fff0f0', borderRadius: 10 },
-logoutText: { color: '#FF3B30', fontWeight: 'bold', fontSize: 18, marginLeft: 10 },
-  version: { textAlign: 'center', color: '#ccc', fontSize: 12 }
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingTop: 40, backgroundColor: '#fff' },
+  avatar: { width: 60, height: 60, borderRadius: 30, marginRight: 15 },
+  name: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+  email: { fontSize: 14, color: '#888' },
+  editLink: { color: 'orange', fontWeight: 'bold', marginTop: 4 },
+  walletCard: { backgroundColor: '#111', padding: 25, borderRadius: 20, margin: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  walletLabel: { color: '#888', fontSize: 12, fontWeight: 'bold', marginBottom: 5 },
+  balance: { color: '#fff', fontSize: 24, fontWeight: 'bold', flex: 1 }, 
+  addBtn: { backgroundColor: '#333', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, marginLeft: 10 },
+  addBtnText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginHorizontal: 20, marginTop: 10, marginBottom: 10, color: '#333' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 15, marginHorizontal: 20, backgroundColor: '#fff', marginBottom: 10, borderRadius: 12, elevation: 2 },
+  menuIconBox: { width: 40, height: 40, backgroundColor: '#f0f0f0', borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  menuContent: { flex: 1 },
+  menuLabel: { fontSize: 16, fontWeight: '600', color: '#333' },
+  menuSubtext: { fontSize: 12, color: '#888' },
+  transactionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 15, marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 10, marginBottom: 8 },
+  iconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' },
+  transTitle: { fontSize: 14, fontWeight: '600' },
+  transDate: { fontSize: 12, color: '#aaa' },
+  transAmount: { fontSize: 14, fontWeight: 'bold' },
+  logoutBtn: { marginTop: 20, alignItems: 'center', padding: 15, marginBottom: 20 },
+  logoutText: { color: 'red', fontWeight: 'bold' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: '80%', backgroundColor: '#fff', padding: 25, borderRadius: 15, elevation: 5 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  input: { borderWidth: 1, borderColor: '#ddd', padding: 10, borderRadius: 8, fontSize: 18, marginBottom: 20, textAlign: 'center' },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
+  cancelBtn: { padding: 10 },
+  confirmBtn: { backgroundColor: 'green', padding: 10, borderRadius: 8, paddingHorizontal: 20 }
 });

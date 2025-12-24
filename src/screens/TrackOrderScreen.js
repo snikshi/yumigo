@@ -1,105 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import React from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useOrder } from '../context/OrderContext'; // 👈 Listen to Context
 
-export default function TrackOrderScreen({ route, navigation }) {
-  // We get the order details passed from the previous screen
-  const { order } = route.params || {}; 
+export default function TrackOrderScreen({ navigation }) {
+  const { liveOrder } = useOrder();
 
-  // Simulation: Restaurant Location (e.g., Hyderabad)
-  const restaurantLoc = {
-    latitude: 17.440080, 
-    longitude: 78.348915,
-  };
-
-  // Simulation: User Location (Slightly away)
-  const userLoc = {
-    latitude: 17.450380,
-    longitude: 78.388415,
-  };
-
-  // If no order data passed (e.g., testing), show loading
-  if (!order) {
+  if (!liveOrder) {
     return (
       <View style={styles.center}>
-        <Text>Loading Order...</Text>
+        <Text style={styles.errorText}>No active order found 🧐</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.homeBtn}>
+            <Text style={styles.homeText}>Go to Home</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
+  // 👇 Calculate Step based on Status text
+  let currentStep = 0;
+  if (liveOrder.status === 'Preparing') currentStep = 1;
+  if (liveOrder.status === 'Out for Delivery') currentStep = 2;
+  if (liveOrder.status === 'Delivered') currentStep = 3;
+
+  const steps = [
+    { title: "Order Placed", icon: "receipt-outline" },
+    { title: "Preparing", icon: "fast-food-outline" },
+    { title: "Out for Delivery", icon: "bicycle-outline" },
+    { title: "Delivered", icon: "home-outline" }
+  ];
+
   return (
-    <View style={styles.container}>
-      {/* 🗺️ THE MAP */}
-      <MapView
-        style={styles.map}
-        initialRegion={{
-          latitude: (restaurantLoc.latitude + userLoc.latitude) / 2,
-          longitude: (restaurantLoc.longitude + userLoc.longitude) / 2,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
-        }}
-      >
-        {/* 🏪 Restaurant Marker */}
-        <Marker coordinate={restaurantLoc} title="Restaurant" description="Picking up food here">
-            <View style={styles.markerContainer}>
-                <Ionicons name="restaurant" size={20} color="white" />
-            </View>
-        </Marker>
-
-        {/* 🏠 User Marker */}
-        <Marker coordinate={userLoc} title="You" description="Delivery Location">
-            <View style={[styles.markerContainer, { backgroundColor: '#007AFF' }]}>
-                <Ionicons name="home" size={20} color="white" />
-            </View>
-        </Marker>
-
-        {/* 🛵 Driver Marker (Simulated at Restaurant start) */}
-        {order.status === 'On the Way' && (
-             <Marker coordinate={restaurantLoc} title="Driver" description="On the way!">
-                <View style={[styles.markerContainer, { backgroundColor: 'black' }]}>
-                    <Ionicons name="bicycle" size={20} color="white" />
-                </View>
-            </Marker>
-        )}
-
-        {/* 🛣️ Path Line */}
-        <Polyline 
-            coordinates={[restaurantLoc, userLoc]}
-            strokeColor="#FF9900"
-            strokeWidth={4}
-        />
-      </MapView>
-
-      {/* 📦 STATUS CARD */}
-      <View style={styles.card}>
-        <Text style={styles.statusTitle}>Order Status</Text>
-        <Text style={styles.statusText}>{order.status}</Text>
-        
-        <View style={styles.timeRow}>
-            <Ionicons name="time-outline" size={20} color="#666" />
-            <Text style={styles.timeText}>Estimated Arrival: 15-20 mins</Text>
-        </View>
-
-        {/* Back Button */}
-        <TouchableOpacity style={styles.btn} onPress={() => navigation.goBack()}>
-            <Text style={styles.btnText}>Back to List</Text>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.navigate('MainTabs')}>
+          <Ionicons name="close" size={30} color="#333" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Order #{liveOrder.id}</Text>
+        <View style={{ width: 30 }} /> 
       </View>
-    </View>
+
+      <View style={styles.mapContainer}>
+        <Image source={{ uri: 'https://i.imgur.com/8J5f8lq.png' }} style={styles.mapImage} />
+        <View style={styles.statusBadge}>
+            <Text style={styles.statusText}>{liveOrder.status.toUpperCase()}</Text>
+        </View>
+      </View>
+
+      <View style={styles.statusContainer}>
+        {steps.map((step, index) => {
+          const isActive = index <= currentStep;
+          return (
+            <View key={index} style={styles.stepRow}>
+              <View style={styles.iconContainer}>
+                <View style={[styles.circle, isActive ? styles.activeCircle : styles.inactiveCircle]}>
+                    <Ionicons name={step.icon} size={18} color={isActive ? "#fff" : "#888"} />
+                </View>
+                {index < 3 && <View style={[styles.line, isActive ? styles.activeLine : styles.inactiveLine]} />}
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={[styles.stepTitle, isActive && styles.activeText]}>{step.title}</Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: '#fff' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  map: { flex: 1 },
-  markerContainer: { backgroundColor: '#FF9900', padding: 8, borderRadius: 20, elevation: 5 },
-  card: { position: 'absolute', bottom: 30, left: 20, right: 20, backgroundColor: 'white', padding: 20, borderRadius: 15, elevation: 10 },
-  statusTitle: { fontSize: 16, color: '#888', fontWeight: 'bold' },
-  statusText: { fontSize: 24, fontWeight: 'bold', color: '#333', marginVertical: 5 },
-  timeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  timeText: { marginLeft: 5, color: '#666' },
-  btn: { backgroundColor: '#333', padding: 15, borderRadius: 10, alignItems: 'center' },
-  btnText: { color: 'white', fontWeight: 'bold', fontSize: 16 }
+  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, paddingTop: 40 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold' },
+  mapContainer: { height: 250, width: '100%', backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center' },
+  mapImage: { width: '100%', height: '100%', opacity: 0.8 },
+  statusBadge: { position: 'absolute', bottom: 20, backgroundColor: '#FF9900', padding: 10, borderRadius: 10 },
+  statusText: { color: '#fff', fontWeight: 'bold' },
+  statusContainer: { flex: 1, padding: 30 },
+  stepRow: { flexDirection: 'row', height: 70 },
+  iconContainer: { alignItems: 'center', marginRight: 15 },
+  circle: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
+  activeCircle: { backgroundColor: '#FF9900' },
+  inactiveCircle: { backgroundColor: '#eee' },
+  line: { width: 2, flex: 1, backgroundColor: '#eee', position: 'absolute', top: 34, zIndex: 1 },
+  activeLine: { backgroundColor: '#FF9900' },
+  inactiveLine: { backgroundColor: '#eee' },
+  textContainer: { justifyContent: 'flex-start', paddingTop: 5 },
+  stepTitle: { fontSize: 16, color: '#888' },
+  activeText: { color: '#000', fontWeight: 'bold' },
+  errorText: { fontSize: 18, marginBottom: 20 },
+  homeBtn: { backgroundColor: '#333', padding: 10, borderRadius: 8 },
+  homeText: { color: '#fff' }
 });

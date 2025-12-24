@@ -1,115 +1,76 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, RefreshControl } from 'react-native';
-import { useAuth } from '../context/AuthContext';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { useOrder } from '../context/OrderContext'; // 👈 Use Context
 
 export default function SellerScreen() {
-  const [orders, setOrders] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const { user } = useAuth();
+  const { liveOrder, updateOrderStatus } = useOrder();
 
-  // 👇 1. FETCH AVAILABLE ORDERS
-  const fetchOrders = async () => {
-    setRefreshing(true);
-    try {
-      // ⚠️ USE YOUR CORRECT RENDER URL (yumigo-api)
-      const response = await fetch("https://yumigo-api.onrender.com/api/partner/available-orders");
-      const json = await response.json();
-      setOrders(json);
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Could not fetch new orders");
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  // 👇 2. ACCEPT AN ORDER
-  const acceptOrder = async (orderId) => {
-    try {
-      const response = await fetch("https://yumigo-api.onrender.com/api/partner/accept-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-            orderId: orderId,
-            driverId: user._id // The logged-in user becomes the driver
-        })
-      });
-
-      const json = await response.json();
-
-      if (json.success) {
-        Alert.alert("Success", "You are now delivering this order! 🛵");
-        fetchOrders(); // Refresh the list to remove the taken order
-      } else {
-        Alert.alert("Error", "Could not accept order.");
-      }
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Server connection failed.");
-    }
-  };
-
-  const renderOrder = ({ item }) => (
-    <View style={styles.card}>
-      <View style={styles.headerRow}>
-        <Text style={styles.orderId}>Order #{item._id.slice(-4)}</Text>
-        <Text style={styles.price}>₹{item.totalPrice}</Text>
-      </View>
-
-      <Text style={styles.status}>Status: {item.status}</Text>
-      
-      <Text style={styles.itemsLabel}>Items:</Text>
-      {item.items.map((food, index) => (
-        <Text key={index} style={styles.itemText}>
-           • {food.quantity}x {food.name}
-        </Text>
-      ))}
-
-      <TouchableOpacity 
-        style={styles.acceptButton} 
-        onPress={() => acceptOrder(item._id)}
-      >
-        <Text style={styles.acceptText}>✅ ACCEPT DELIVERY</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  if (!liveOrder) {
+    return (
+      <SafeAreaView style={styles.center}>
+        <Text style={styles.emptyText}>No Active Orders 💤</Text>
+        <Text style={styles.subText}>Wait for a customer to checkout.</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>🛵 Driver Dashboard</Text>
-      <Text style={styles.subtitle}>Available Orders nearby:</Text>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>👨‍🍳 Kitchen Dashboard</Text>
+      
+      <View style={styles.card}>
+        <Text style={styles.orderId}>Order #{liveOrder.id}</Text>
+        <Text style={styles.status}>Status: {liveOrder.status}</Text>
+        
+        <View style={styles.divider} />
+        
+        {liveOrder.items.map((item, i) => (
+             <Text key={i} style={styles.item}>{item.quantity} x {item.name}</Text>
+        ))}
 
-      <FlatList
-        data={orders}
-        keyExtractor={(item) => item._id}
-        renderItem={renderOrder}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={fetchOrders} />
-        }
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No orders waiting... take a break! ☕</Text>
-        }
-      />
-    </View>
+        <Text style={styles.total}>Total: ₹{liveOrder.totalPrice}</Text>
+      </View>
+
+      <Text style={styles.label}>Update Status:</Text>
+
+      <TouchableOpacity 
+        style={[styles.btn, { backgroundColor: 'orange' }]}
+        onPress={() => updateOrderStatus('Preparing')}
+      >
+        <Text style={styles.btnText}>Start Cooking 🍳</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={[styles.btn, { backgroundColor: 'blue' }]}
+        onPress={() => updateOrderStatus('Out for Delivery')}
+      >
+        <Text style={styles.btnText}>Hand to Driver 🛵</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={[styles.btn, { backgroundColor: 'green' }]}
+        onPress={() => updateOrderStatus('Delivered')}
+      >
+        <Text style={styles.btnText}>Order Delivered ✅</Text>
+      </TouchableOpacity>
+
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f2', padding: 20, paddingTop: 50 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#333' },
-  subtitle: { fontSize: 16, color: '#666', marginBottom: 20 },
-  card: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 15, elevation: 3 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  container: { flex: 1, backgroundColor: '#f4f4f4', padding: 20, paddingTop: 50 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { fontSize: 24, fontWeight: 'bold', color: '#888' },
+  subText: { color: '#aaa', marginTop: 5 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, color: '#333' },
+  card: { backgroundColor: '#fff', padding: 20, borderRadius: 15, marginBottom: 30, elevation: 3 },
   orderId: { fontSize: 18, fontWeight: 'bold' },
-  price: { fontSize: 18, fontWeight: 'bold', color: 'green' },
-  status: { color: '#FF9900', fontWeight: 'bold', marginBottom: 10 },
-  itemsLabel: { fontWeight: 'bold', marginTop: 5 },
-  itemText: { color: '#555', marginLeft: 10 },
-  acceptButton: { backgroundColor: '#24963F', padding: 12, borderRadius: 8, marginTop: 15, alignItems: 'center' },
-  acceptText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  emptyText: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 16 }
+  status: { fontSize: 16, color: 'orange', marginBottom: 10 },
+  divider: { height: 1, backgroundColor: '#eee', marginVertical: 10 },
+  item: { fontSize: 16, marginBottom: 5 },
+  total: { fontSize: 18, fontWeight: 'bold', color: 'green', marginTop: 10 },
+  label: { fontSize: 16, fontWeight: '600', marginBottom: 10 },
+  btn: { padding: 15, borderRadius: 10, marginBottom: 10, alignItems: 'center' },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });

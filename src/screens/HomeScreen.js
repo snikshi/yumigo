@@ -55,7 +55,15 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.greeting}>Hello, {user?.name || "Foodie"}! 👋</Text>
         </View>
-
+{/* 👇 NEW RIDE BUTTON */}
+  <TouchableOpacity 
+    style={{ backgroundColor: '#000', padding: 10, borderRadius: 20, flexDirection: 'row', alignItems: 'center' }}
+    onPress={() => navigation.navigate('Ride')}
+  >
+    <Ionicons name="car" size={20} color="#fff" style={{marginRight: 5}} />
+    <Text style={{color: '#fff', fontWeight: 'bold'}}>Ride</Text>
+  </TouchableOpacity>
+  
         {/* 👇 PROFILE BUTTON */}
         <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
             <Image 
