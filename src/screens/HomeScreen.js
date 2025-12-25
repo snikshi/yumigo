@@ -5,15 +5,26 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useAuth } from '../context/AuthContext'; // 👈 Get User Data
+import { useAuth } from '../context/AuthContext'; 
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { user } = useAuth(); // 👈 Access user info
+  const { user } = useAuth(); 
+  
   const [restaurants, setRestaurants] = useState([]);
   const [filteredRestaurants, setFilteredRestaurants] = useState([]); 
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // 👇 SMART GREETING LOGIC
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return { text: "Good Morning ☀️", sub: "Breakfast time?" };
+    if (hour < 17) return { text: "Good Afternoon 🌤️", sub: "Lunch break?" };
+    return { text: "Good Evening 🌙", sub: "Dinner is served!" };
+  };
+
+  const greeting = getGreeting();
 
   useEffect(() => {
     fetch("https://yumigo-api.onrender.com/api/restaurant/list")
@@ -45,7 +56,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* 🟢 HEADER WITH PROFILE ICON */}
+      {/* 🟢 SMART HEADER */}
       <View style={styles.header}>
         <View>
             <View style={styles.locationRow}>
@@ -53,24 +64,28 @@ export default function HomeScreen() {
                 <Text style={styles.locationText}> Home • Hyderabad</Text>
                 <Ionicons name="chevron-down" size={16} color="#333" />
             </View>
-            <Text style={styles.greeting}>Hello, {user?.name || "Foodie"}! 👋</Text>
+            {/* 👇 Dynamic Text */}
+            <Text style={styles.greetingTitle}>{greeting.text}</Text>
+            <Text style={styles.greetingSub}>{greeting.sub}</Text>
         </View>
-{/* 👇 NEW RIDE BUTTON */}
-  <TouchableOpacity 
-    style={{ backgroundColor: '#000', padding: 10, borderRadius: 20, flexDirection: 'row', alignItems: 'center' }}
-    onPress={() => navigation.navigate('Ride')}
-  >
-    <Ionicons name="car" size={20} color="#fff" style={{marginRight: 5}} />
-    <Text style={{color: '#fff', fontWeight: 'bold'}}>Ride</Text>
-  </TouchableOpacity>
-  
-        {/* 👇 PROFILE BUTTON */}
-        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-            <Image 
-                source={{ uri: 'https://randomuser.me/api/portraits/men/1.jpg' }} 
-                style={styles.profilePic} 
-            />
-        </TouchableOpacity>
+
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            {/* RIDE BUTTON */}
+            <TouchableOpacity 
+                style={styles.rideBtn}
+                onPress={() => navigation.navigate('Ride')}
+            >
+                <Ionicons name="car" size={20} color="#fff" />
+            </TouchableOpacity>
+
+            {/* PROFILE */}
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+                <Image 
+                    source={{ uri: 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+                    style={styles.profilePic} 
+                />
+            </TouchableOpacity>
+        </View>
       </View>
 
       {/* 🔍 SEARCH BAR */}
@@ -116,7 +131,6 @@ export default function HomeScreen() {
                 scrollEnabled={false}
                 keyExtractor={(item) => item._id}
                 renderItem={({ item }) => (
-                    // 👇 CLICK ACTION ADDED HERE
                     <TouchableOpacity 
                         style={styles.card}
                         onPress={() => navigation.navigate('RestaurantDetail', { restaurant: item })}
@@ -141,7 +155,12 @@ const styles = StyleSheet.create({
   header: { padding: 20, paddingTop: 10, backgroundColor: '#fff', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   locationRow: { flexDirection: 'row', alignItems: 'center' },
   locationText: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  greeting: { fontSize: 14, color: '#888', marginLeft: 2 },
+  
+  // New Styles for Smart Greeting
+  greetingTitle: { fontSize: 22, fontWeight: 'bold', color: '#333', marginTop: 5 },
+  greetingSub: { fontSize: 14, color: '#888' },
+  
+  rideBtn: { backgroundColor: '#000', padding: 10, borderRadius: 20, marginRight: 10 },
   profilePic: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#eee' },
   
   searchContainer: { marginHorizontal: 20, marginBottom: 10, flexDirection: 'row', backgroundColor: '#f2f2f2', borderRadius: 10, padding: 12, alignItems: 'center' },
@@ -155,7 +174,7 @@ const styles = StyleSheet.create({
   catText: { fontSize: 12, fontWeight: '600', color: '#555' },
 
   card: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 15, backgroundColor: '#fff', borderRadius: 15, elevation: 3, padding: 10 },
-  cardImage: { width: 90, height: 90, borderRadius: 10, marginRight: 15 },
+  image: { width: 90, height: 90, borderRadius: 10, marginRight: 15 },
   cardInfo: { flex: 1, justifyContent: 'center' },
   cardName: { fontSize: 18, fontWeight: 'bold', color: '#333' },
   cardMeta: { fontSize: 14, color: '#666', marginTop: 4 },

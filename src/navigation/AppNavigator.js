@@ -18,7 +18,9 @@ import TrackOrderScreen from '../screens/TrackOrderScreen';
 import FoodScreen from '../screens/FoodScreen';
 import RideScreen from '../screens/RideScreen';
 import RideHistoryScreen from '../screens/RideHistoryScreen';
+import YourRideScreen from '../screens/YourRideScreen';
 import SellerScreen from '../screens/SellerScreen'; // 👈 Seller Screen Imported
+import ShoppingScreen from '../screens/ShoppingScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -44,6 +46,13 @@ function MainTabs() {
     >
       {/* 👇 The order matters! Home is first. */}
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen 
+  name="Shop" 
+  component={ShoppingScreen} 
+  options={{
+    tabBarIcon: ({ color }) => <Ionicons name="pricetags" size={24} color={color} />
+  }}
+/>
       <Tab.Screen name="Cart" component={CartScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
       <Tab.Screen name="Seller" component={SellerScreen} /> 
@@ -77,6 +86,7 @@ export default function AppNavigator() {
           <Stack.Screen name="Food" component={FoodScreen} />
           <Stack.Screen name="Ride" component={RideScreen} />
           <Stack.Screen name="RideHistory" component={RideHistoryScreen} />
+           <Stack.Screen name="YourRide" component={YourRideScreen} />
         </>
       ) : (
         // 🔒 IF LOGGED OUT

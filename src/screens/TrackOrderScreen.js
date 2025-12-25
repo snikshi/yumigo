@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useOrder } from '../context/OrderContext'; // 👈 Listen to Context
+import MapView, { Marker, Polyline } from 'react-native-maps'; // 👈 IMPORT MAP
+import { useOrder } from '../context/OrderContext'; 
 
 export default function TrackOrderScreen({ navigation }) {
   const { liveOrder } = useOrder();
@@ -17,8 +18,11 @@ export default function TrackOrderScreen({ navigation }) {
     );
   }
 
-  // 👇 Calculate Step based on Status text
+  const isHeld = liveOrder.status === 'Scheduled';
+  
+  // Status Steps Logic
   let currentStep = 0;
+  if (isHeld) currentStep = 0;
   if (liveOrder.status === 'Preparing') currentStep = 1;
   if (liveOrder.status === 'Out for Delivery') currentStep = 2;
   if (liveOrder.status === 'Delivered') currentStep = 3;
@@ -36,17 +40,52 @@ export default function TrackOrderScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.navigate('MainTabs')}>
           <Ionicons name="close" size={30} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Order #{liveOrder.id}</Text>
+        <Text style={styles.headerTitle}>Order #{liveOrder._id ? liveOrder._id.slice(-6) : '...'}</Text>
         <View style={{ width: 30 }} /> 
       </View>
 
+      {isHeld && (
+        <View style={styles.holdBanner}>
+            <Ionicons name="time" size={24} color="#fff" />
+            <Text style={styles.holdText}>Ride is long 🚖. Holding order so it arrives fresh!</Text>
+        </View>
+      )}
+
+      {/* 👇 REAL MAP VIEW */}
       <View style={styles.mapContainer}>
-        <Image source={{ uri: 'https://i.imgur.com/8J5f8lq.png' }} style={styles.mapImage} />
-        <View style={styles.statusBadge}>
+        <MapView
+            style={styles.map}
+            initialRegion={{
+                latitude: 17.3850,
+                longitude: 78.4867,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+            }}
+        >
+            {/* Restaurant Marker */}
+            <Marker coordinate={{ latitude: 17.3850, longitude: 78.4867 }} title="Restaurant">
+                 <View style={{backgroundColor: 'white', padding: 5, borderRadius: 20}}>
+                    <Text>🍕</Text>
+                 </View>
+            </Marker>
+
+            {/* Home Marker */}
+            <Marker coordinate={{ latitude: 17.4200, longitude: 78.5000 }} title="Home" pinColor="blue" />
+
+            {/* Delivery Boy (Only show if Out for Delivery) */}
+            {!isHeld && (
+                <Marker coordinate={{ latitude: 17.4000, longitude: 78.4900 }} title="Delivery Partner">
+                    <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png' }} style={{width: 35, height: 35}} />
+                </Marker>
+            )}
+        </MapView>
+
+        <View style={[styles.statusBadge, isHeld && { backgroundColor: '#444' }]}>
             <Text style={styles.statusText}>{liveOrder.status.toUpperCase()}</Text>
         </View>
       </View>
 
+      {/* STEPS LIST (Same as before) */}
       <View style={styles.statusContainer}>
         {steps.map((step, index) => {
           const isActive = index <= currentStep;
@@ -60,6 +99,7 @@ export default function TrackOrderScreen({ navigation }) {
               </View>
               <View style={styles.textContainer}>
                 <Text style={[styles.stepTitle, isActive && styles.activeText]}>{step.title}</Text>
+                {index === 0 && isHeld && <Text style={{color: 'orange', fontSize: 12}}>Waiting for sync...</Text>}
               </View>
             </View>
           );
@@ -74,18 +114,25 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, paddingTop: 40 },
   headerTitle: { fontSize: 18, fontWeight: 'bold' },
-  mapContainer: { height: 250, width: '100%', backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center' },
-  mapImage: { width: '100%', height: '100%', opacity: 0.8 },
-  statusBadge: { position: 'absolute', bottom: 20, backgroundColor: '#FF9900', padding: 10, borderRadius: 10 },
+  
+  holdBanner: { backgroundColor: '#FF9900', padding: 15, flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, borderRadius: 10, marginBottom: 10 },
+  holdText: { color: '#fff', fontWeight: 'bold', marginLeft: 10, flex: 1 },
+
+  // Updated Map Styles
+  mapContainer: { height: 250, width: '100%', position: 'relative' },
+  map: { width: '100%', height: '100%' },
+
+  statusBadge: { position: 'absolute', bottom: 20, alignSelf: 'center', backgroundColor: 'green', padding: 10, borderRadius: 10 },
   statusText: { color: '#fff', fontWeight: 'bold' },
+  
   statusContainer: { flex: 1, padding: 30 },
   stepRow: { flexDirection: 'row', height: 70 },
   iconContainer: { alignItems: 'center', marginRight: 15 },
   circle: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
-  activeCircle: { backgroundColor: '#FF9900' },
+  activeCircle: { backgroundColor: 'green' },
   inactiveCircle: { backgroundColor: '#eee' },
   line: { width: 2, flex: 1, backgroundColor: '#eee', position: 'absolute', top: 34, zIndex: 1 },
-  activeLine: { backgroundColor: '#FF9900' },
+  activeLine: { backgroundColor: 'green' },
   inactiveLine: { backgroundColor: '#eee' },
   textContainer: { justifyContent: 'flex-start', paddingTop: 5 },
   stepTitle: { fontSize: 16, color: '#888' },

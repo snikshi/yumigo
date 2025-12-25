@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext'; // 👈 Import Context
 
 export default function SignupScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  
   const navigation = useNavigation();
+  const { signup } = useAuth(); // 👈 Use the signup function from Context
 
   const handleSignup = async () => {
     if (!name || !email || !password) {
@@ -17,27 +20,16 @@ export default function SignupScreen() {
 
     setLoading(true);
 
-    try {
-      // 👇 MAKE SURE THIS URL MATCHES YOUR RENDER SERVER
-      const response = await fetch('https://yumigo-backend.onrender.com/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      });
+    // 👇 Call Context function (matches URL automatically)
+    const result = await signup(name, email, password);
 
-      const json = await response.json();
+    setLoading(false);
 
-      if (json.success) {
+    if (result.success) {
         Alert.alert('Success', 'Account created! Please login.');
-        navigation.navigate('Login'); // Go back to Login
-      } else {
-        Alert.alert('Error', json.message || 'Signup failed');
-      }
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Could not connect to server.');
-    } finally {
-      setLoading(false);
+        navigation.navigate('Login'); 
+    } else {
+        Alert.alert('Error', result.message);
     }
   };
 
@@ -51,7 +43,6 @@ export default function SignupScreen() {
         value={name}
         onChangeText={setName}
       />
-
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -59,7 +50,6 @@ export default function SignupScreen() {
         onChangeText={setEmail}
         autoCapitalize="none"
       />
-      
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -68,16 +58,8 @@ export default function SignupScreen() {
         secureTextEntry
       />
 
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={handleSignup} 
-        disabled={loading}
-      >
-        {loading ? (
-            <ActivityIndicator color="#fff" />
-        ) : (
-            <Text style={styles.buttonText}>Sign Up</Text>
-        )}
+      <TouchableOpacity style={styles.button} onPress={handleSignup} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign Up</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate('Login')}>

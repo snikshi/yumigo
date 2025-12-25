@@ -10,40 +10,30 @@ export default function LoginScreen() {
   const navigation = useNavigation();
   const { login } = useAuth(); // 👈 Use the Auth Context we built earlier
 
-  const handleLogin = async () => {
+  
+// Inside handleLogin function:
+const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
+        Alert.alert("Error", "Please fill all fields");
+        return;
     }
+    
+    setLoading(true); // Show spinner
+    
+    // 👇 CALL THE NEW ASYNC LOGIN
+    const result = await login(email, password);
+    
+    setLoading(false);
 
-    setLoading(true);
-
-    try {
-      // 👇 CHANGE THIS TO YOUR RENDER URL
-      const response = await fetch('https://yumigo-backend.onrender.com/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const json = await response.json();
-
-      if (json.success) {
-        // ✅ Login Success!
-        await login(json.user); // Save user to memory
-        
-        // 👇 FIXED NAVIGATION: Go to "MainTabs" instead of "Home"
-       
-      } else {
-        Alert.alert('Login Failed', json.message || 'Invalid credentials');
-      }
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Could not connect to server. Is it awake?');
-    } finally {
-      setLoading(false);
+    if (result.success) {
+       // ✅ Login Success!
+        await login(result.user); // Save user to memory
+        // Navigation happens automatically via AppNavigator if you set it up right, 
+        // OR you can navigate manually:
+        navigation.replace("MainTabs"); 
     }
-  };
+};
+
 
   return (
     <View style={styles.container}>
@@ -53,7 +43,7 @@ export default function LoginScreen() {
         style={styles.input}
         placeholder="Email"
         value={email}
-        onChangeText={setEmail}
+       onChangeText={text => setEmail(text ? text.trim() : '')}
         autoCapitalize="none"
       />
       

@@ -8,7 +8,9 @@ import { useWallet } from '../context/WalletContext'; // 👈 1. IMPORT WALLET
 
 const formatPrice = (price) => `₹${price}`;
 
-export default function CartScreen({ navigation }) {
+export default function CartScreen({ navigation, route }) {
+  // 1.catch ride params (if coming from "hungry?" prompt)
+  const { syncedRideId, rideDuration } = route.params ||{};
   const context = useCart();
   const cartItems = context.cart || context.cartItems || []; 
   const { removeFromCart, clearCart } = context;
@@ -86,7 +88,36 @@ export default function CartScreen({ navigation }) {
 
   // --- COMMON ORDER LOGIC ---
   const placeOrder = async (method) => {
+    setLoading(true);
     try { 
+      // we call the API directly here to ensure we pass the 'rideId'
+      const response = await fetch("https://yumigo-api.onrender.com/api/orders/create", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user._id || user.id,
+          items: cartItems,
+          totalPrice: totalPrice,
+          paymentMethod: method,
+
+          // 🚨 THE MAGIC LINK! (Sends Ride Info to Backend)
+          rideId: syncedRideId || null, 
+          rideDuration: rideDuration || null 
+        })
+      });
+
+      const json = await response.json();
+
+      if (json.success) {
+        // Show specific message (e.g., "Order Held" or "Order Placed")
+        const successMsg = json.message || `Paid via ${method}! Order Placed 🚀`;
+        Alert.alert("Success", successMsg);
+        
+        clearCart();
+        navigation.navigate('TrackOrder'); // Or 'OrderHistory'
+      } else {
+        Alert.alert("Error", json.message || "Order saving failed.");
+      }
       startOrder(cartItems, totalPrice);
       Alert.alert("Success", `Paid via ${method}! Order Placed 🚀`);
       clearCart();
@@ -111,7 +142,12 @@ export default function CartScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.header}>🛒 Your Order</Text>
-      
+      {/* Show Sync Badge if linked to a ride */}
+      {syncedRideId && (
+        <View style={styles.syncBadge}>
+            <Text style={{color: '#fff', fontWeight: 'bold'}}>⚡ Linked to your Ride</Text>
+        </View>
+      )}
       <FlatList
         data={cartItems}
         keyExtractor={(item, index) => (item._id || item.id || index).toString() + index}

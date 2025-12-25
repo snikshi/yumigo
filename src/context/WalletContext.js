@@ -11,10 +11,13 @@ export const WalletProvider = ({ children }) => {
   const [balance, setBalance] = useState(0); 
   const [transactions, setTransactions] = useState([]);
 
-  // 👇 2. LOAD DATA (Specific to User)
+  // 👇 2. LOAD DATA (Now checks for MongoDB _id)
   useEffect(() => {
     const loadWalletData = async () => {
-        if (!user || !user.id) {
+        // Support both MongoDB "_id" and standard "id"
+        const userId = user?._id || user?.id;
+
+        if (!userId) {
             // No user logged in? Reset wallet to empty
             setBalance(0);
             setTransactions([]);
@@ -22,9 +25,9 @@ export const WalletProvider = ({ children }) => {
         }
 
         try {
-            // Use Unique Keys: e.g., "wallet_balance_123"
-            const storedBalance = await AsyncStorage.getItem(`wallet_balance_${user.id}`);
-            const storedTrans = await AsyncStorage.getItem(`wallet_trans_${user.id}`);
+            // Use Unique Keys based on the stable User ID
+            const storedBalance = await AsyncStorage.getItem(`wallet_balance_${userId}`);
+            const storedTrans = await AsyncStorage.getItem(`wallet_trans_${userId}`);
 
             if (storedBalance !== null) {
                 setBalance(Number(storedBalance)); 
@@ -46,10 +49,13 @@ export const WalletProvider = ({ children }) => {
 
   // 👇 3. Helper: Save to Unique Keys
   const saveData = async (newBalance, newTransactions) => {
-      if (!user || !user.id) return; // Safety check
+      const userId = user?._id || user?.id;
+      
+      if (!userId) return; // Safety check
+      
       try {
-          await AsyncStorage.setItem(`wallet_balance_${user.id}`, newBalance.toString());
-          await AsyncStorage.setItem(`wallet_trans_${user.id}`, JSON.stringify(newTransactions));
+          await AsyncStorage.setItem(`wallet_balance_${userId}`, newBalance.toString());
+          await AsyncStorage.setItem(`wallet_trans_${userId}`, JSON.stringify(newTransactions));
       } catch (error) {
           console.error("Failed to save wallet", error);
       }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, FlatList, Alert, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useWallet } from '../context/WalletContext'; // 👈 1. Import Wallet
+import { useAuth } from '../context/AuthContext'; // 👈 1. Import Auth
 
 const VEHICLES = [
   { id: '1', name: 'Moto', price: 40, time: '3 min', image: 'https://cdn-icons-png.flaticon.com/512/3448/3448636.png' }, 
@@ -11,14 +12,19 @@ const VEHICLES = [
 ];
 
 export default function RideScreen({ navigation }) {
+  const { user } = useAuth(); // 👈 2. Get Real User Data
   const [pickup, setPickup] = useState('');
   const [drop, setDrop] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   
   // 👇 2. Get Balance
   const { balance } = useWallet();
+// Inside RideScreen.js
 
-  const handleBook = () => {
+// Inside RideScreen.js
+
+const handleBook = async () => {
+    // 1. Validation Checks
     if (!pickup || !drop) {
       Alert.alert("Missing Details", "Please enter Pickup and Drop locations.");
       return;
@@ -27,6 +33,46 @@ export default function RideScreen({ navigation }) {
       Alert.alert("Select Ride", "Please choose a vehicle type.");
       return;
     }
+    // (Optional: Check Balance logic here)
+
+    try {
+        const response = await fetch("https://yumigo-api.onrender.com/api/rides/book", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: user?._id || user?.id || "guest", // 👈 3. USE REAL ID HERE!
+                pickup: { address: pickup },
+                drop: { address: drop },
+                price: selectedVehicle.price
+            })
+        });
+
+        // Check if response is okay
+        if (!response.ok) {
+            throw new Error(`Server Error: ${response.status}`);
+        }
+
+        const json = await response.json();
+
+        if (json.success) {
+            // Success! Navigate
+            navigation.navigate('RideHistory', { 
+                vehicle: selectedVehicle,
+                dropLocation: drop,
+                rideId: json.ride._id,
+                rideEta: parseInt(selectedVehicle.time) 
+            });
+        } else {
+            Alert.alert("Booking Failed", "The server returned an error.");
+        }
+    } catch (err) {
+        console.error("❌ Booking Error:", err);
+        // This helps you see if it's a Timeout or DNS issue
+        Alert.alert("Connection Error", "Could not connect to server. Is it waking up?");
+    }
+
+
+
 
     // 👇 3. Check Wallet Balance BEFORE Booking
     if (balance < selectedVehicle.price) {
@@ -38,10 +84,13 @@ export default function RideScreen({ navigation }) {
     }
 
     // Success - Go to Tracking
-    navigation.navigate('RideHistory', { 
-        vehicle: selectedVehicle,
-        dropLocation: drop 
-    });
+   // Inside RideScreen.js
+navigation.navigate('RideHistory', { 
+    vehicle: selectedVehicle,
+    dropLocation: drop,
+    rideId: json.ride._id, // 👈 Make sure this matches your backend response
+    rideEta: parseInt(selectedVehicle.time) 
+});
   };
 
   const renderVehicle = ({ item }) => {
@@ -70,7 +119,7 @@ export default function RideScreen({ navigation }) {
           source={{ uri: 'https://i.imgur.com/8J5f8lq.png' }} 
           style={styles.mapImage} 
         />
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('MainTabs')}>
             <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
       </View>
