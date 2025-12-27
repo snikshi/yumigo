@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline } from 'react-native-maps'; // 👈 1. IMPORT MAP
 import { useWallet } from '../context/WalletContext'; 
 import RideFoodPrompt from '../components/RideFoodPrompt'; 
+import * as Notifications from 'expo-notifications';
 
 // HYDERABAD COORDINATES (Default)
 const INITIAL_REGION = {
@@ -26,20 +27,53 @@ export default function RideHistoryScreen({ route, navigation }) {
   const [driverLoc, setDriverLoc] = useState({ latitude: 17.3850, longitude: 78.4867 });
 
   // Simulate Ride Logic (Same as before)
+ // Simulate Ride Logic
   useEffect(() => {
+    // 1. Driver Found
     const timer1 = setTimeout(() => {
         setDriver({ name: 'Raju Bhai', rating: 4.8, plate: 'TS-09-AB-1234', phone: '9876543210' });
         setStatus('Arriving');
+        
+        // 🔔 TRIGGER NOTIFICATION
+        Notifications.scheduleNotificationAsync({
+            content: {
+                title: "Driver Found! 🚖",
+                body: "Raju Bhai (TS-09-AB-1234) is arriving in 2 mins.",
+                sound: 'default',
+            },
+            trigger: null, // Send immediately
+        });
+
     }, 3000);
 
+    // 2. Ride Starts
     const timer2 = setTimeout(() => {
         setStatus('On Trip');
-        // Simulate Driver Moving slightly
-        setDriverLoc({ latitude: 17.3950, longitude: 78.4967 });
+
+        // 🔔 TRIGGER NOTIFICATION
+        Notifications.scheduleNotificationAsync({
+            content: {
+                title: "Trip Started 🏁",
+                body: "You are on your way to the destination. Share your ride details for safety.",
+            },
+            trigger: null,
+        });
+
     }, 8000);
 
+    // 3. Ride Completed
     const timer3 = setTimeout(() => {
         setStatus('Completed');
+        
+        // 🔔 TRIGGER NOTIFICATION
+        Notifications.scheduleNotificationAsync({
+            content: {
+                title: "You've Arrived! ✅",
+                body: `Total fare is ₹${vehicle?.price || '0'}. Payment deducted from Wallet.`,
+            },
+            trigger: null,
+        });
+
     }, 25000);
 
     return () => { clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3); };

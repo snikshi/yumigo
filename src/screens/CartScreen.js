@@ -1,234 +1,494 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  Switch
+} from 'react-native';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { useStripe } from '@stripe/stripe-react-native'; 
+import { useStripe } from '@stripe/stripe-react-native';
 import { useOrder } from '../context/OrderContext';
-import { useWallet } from '../context/WalletContext'; // 👈 1. IMPORT WALLET
+import { useWallet } from '../context/WalletContext';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-const formatPrice = (price) => `₹${price}`;
+const formatPrice = (price) => `₹${Number(price).toFixed(2)}`;
 
 export default function CartScreen({ navigation, route }) {
-  // 1.catch ride params (if coming from "hungry?" prompt)
-  const { syncedRideId, rideDuration } = route.params ||{};
-  const context = useCart();
-  const cartItems = context.cart || context.cartItems || []; 
-  const { removeFromCart, clearCart } = context;
-  
+  // --- PARAMS & CONTEXT ---
+  const { syncedRideId, rideDuration } = route.params || {};
+  const { cart, removeFromCart, clearCart } = useCart(); 
+  const cartItems = cart || []; 
   const { user } = useAuth();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe(); 
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { startOrder } = useOrder();
-  
-  // 👇 2. GET WALLET DATA
   const { balance, payFromWallet } = useWallet();
 
+  // --- LOCAL STATE ---
   const [loading, setLoading] = useState(false);
+  const [tip, setTip] = useState(0);
+  const [donate, setDonate] = useState(true);
+  const [useWallet, setUseWallet] = useState(false); 
+  const [coupon, setCoupon] = useState(null); // Coupon State
 
-  // Calculate Total
-  const totalPrice = cartItems.reduce((sum, item) => sum + (Number(item.price) * (item.quantity || 1)), 0);
-
-  // --- STRIPE LOGIC (For Credit Card) ---
-  const fetchPaymentIntent = async () => {
-    try {
-      const response = await fetch("https://yumigo-api.onrender.com/api/payments/intents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: totalPrice }) 
-      });
-      const json = await response.json();
-      return json.clientSecret;
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Server error");
-      return null;
+  // --- 1. LISTEN FOR COUPON FROM COUPONS SCREEN ---
+  useEffect(() => {
+    if (route.params?.appliedCoupon) {
+        setCoupon(route.params.appliedCoupon);
+        // Optional: Reset params to avoid re-triggering if needed, but safe to keep
+        navigation.setParams({ appliedCoupon: null });
     }
-  };
+  }, [route.params?.appliedCoupon]);
 
-  const handleCardCheckout = async () => {
-    if (!user) { Alert.alert("Login Required", "Please login."); return; }
-    setLoading(true);
+  // --- CALCULATIONS ---
+  const itemTotal = cartItems.reduce((sum, item) => sum + Number(item.price) * (item.quantity || 1), 0);
+  
+  // Constants 
+  const packagingCharge = 38.10;
+  const deliveryFee = 56.00;
+  const deliveryDiscount = 56.00; 
+  const platformFee = 12.50;
+  const taxes = 10.30;
+  const donationAmount = donate ? 5.00 : 0;
+  
+  // 2. CALCULATE DISCOUNT
+  const couponDiscount = coupon ? (coupon.discountAmount || 0) : 0;
 
-    const clientSecret = await fetchPaymentIntent();
-    if (!clientSecret) { setLoading(false); return; }
+  // 3. FINAL TOTAL (Subtract Discount)
+  const finalToPay = Math.max(0, itemTotal + packagingCharge + (deliveryFee - deliveryDiscount) + platformFee + taxes + donationAmount + tip - couponDiscount);
+  
+  // Wallet Logic
+  const walletCovered = useWallet ? Math.min(balance, finalToPay) : 0;
+  const remainingToPay = finalToPay - walletCovered;
+  const isInsufficientWallet = useWallet && balance < finalToPay;
 
-    const { error: initError } = await initPaymentSheet({
-      merchantDisplayName: "Yumigo App",
-      paymentIntentClientSecret: clientSecret,
-    });
-    if (initError) { setLoading(false); return; }
-
-    const { error: paymentError } = await presentPaymentSheet();
-    if (paymentError) {
-      Alert.alert("Payment Failed", paymentError.message);
-      setLoading(false);
-    } else {
-      await placeOrder('Card'); // Pass 'Card' as method
+  // --- PAYMENT HANDLERS ---
+  const handleCheckout = async () => {
+    if (!user) {
+      Alert.alert('Login Required', 'Please login to place an order.');
+      return;
     }
-  };
 
-  // --- 👇 NEW WALLET LOGIC ---
-  const handleWalletCheckout = async () => {
-    if (!user) { Alert.alert("Login Required", "Please login."); return; }
-    
-    // 1. Check if user has enough money
-    if (balance < totalPrice) {
-        Alert.alert("Insufficient Funds", "Please add money to your wallet via Profile.");
+    // Case 1: Wallet covers everything
+    if (useWallet && balance >= finalToPay) {
+        await processOrder('Wallet', finalToPay);
         return;
     }
 
-    // 2. Attempt Payment
-    const success = payFromWallet(totalPrice);
-    
-    if (success) {
-        await placeOrder('Wallet'); // Pass 'Wallet' as method
-    } else {
-        Alert.alert("Error", "Wallet payment failed.");
+    // Case 2: Split Payment (Wallet + Card) OR Just Card
+    if (remainingToPay > 0) {
+        await handleStripePayment();
     }
   };
 
-  // --- COMMON ORDER LOGIC ---
-  const placeOrder = async (method) => {
+  const handleStripePayment = async () => {
     setLoading(true);
-    try { 
-      // we call the API directly here to ensure we pass the 'rideId'
-      const response = await fetch("https://yumigo-api.onrender.com/api/orders/create", {
+    try {
+      const response = await fetch('https://yumigo-api.onrender.com/api/payments/intents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user._id || user.id,
-          items: cartItems,
-          totalPrice: totalPrice,
-          paymentMethod: method,
-
-          // 🚨 THE MAGIC LINK! (Sends Ride Info to Backend)
-          rideId: syncedRideId || null, 
-          rideDuration: rideDuration || null 
-        })
+        body: JSON.stringify({ amount: remainingToPay }), 
       });
-
       const json = await response.json();
-
-      if (json.success) {
-        // Show specific message (e.g., "Order Held" or "Order Placed")
-        const successMsg = json.message || `Paid via ${method}! Order Placed 🚀`;
-        Alert.alert("Success", successMsg);
-        
-        clearCart();
-        navigation.navigate('TrackOrder'); // Or 'OrderHistory'
-      } else {
-        Alert.alert("Error", json.message || "Order saving failed.");
+      
+      if (!json.clientSecret) {
+        setLoading(false);
+        Alert.alert("Error", "Server error generating payment");
+        return;
       }
-      startOrder(cartItems, totalPrice);
-      Alert.alert("Success", `Paid via ${method}! Order Placed 🚀`);
-      clearCart();
-      navigation.navigate('TrackOrder'); 
+
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'Yumigo',
+        paymentIntentClientSecret: json.clientSecret,
+      });
+      if (initError) { setLoading(false); return; }
+
+      const { error: paymentError } = await presentPaymentSheet();
+      
+      if (paymentError) {
+        Alert.alert("Cancelled", "Payment cancelled");
+        setLoading(false);
+      } else {
+        if (useWallet && walletCovered > 0) {
+             const walletSuccess = await payFromWallet(walletCovered); 
+             if (!walletSuccess) {
+                 Alert.alert("Warning", "Card charged, but Wallet deduction failed.");
+             }
+        }
+        await processOrder('Card', finalToPay);
+      }
+    } catch (e) {
+        console.error(e);
+        setLoading(false);
+    }
+  };
+
+  const processOrder = async (method, amount) => {
+    setLoading(true);
+    try {
+        if (method === 'Wallet') {
+            const success = await payFromWallet(amount);
+            if (!success) { throw new Error("Wallet deduction failed"); }
+        }
+
+        const response = await fetch("https://yumigo-api.onrender.com/api/orders/create", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user._id || user.id,
+              items: cartItems,
+              totalPrice: amount,
+              paymentMethod: method,
+              rideId: syncedRideId || null, 
+              rideDuration: rideDuration || null 
+            })
+        });
+        const json = await response.json();
+
+        if (json.success) {
+            startOrder(cartItems, amount);
+            clearCart();
+            navigation.navigate('TrackOrder');
+        } else {
+            Alert.alert("Order Failed", json.message);
+        }
     } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Order saving failed.");
+        Alert.alert("Error", error.message || "Something went wrong");
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
   if (cartItems.length === 0) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>Your cart is empty 🍔</Text>
-        <Text style={styles.subText}>Go add some tasty food!</Text>
+        <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/11329/11329060.png' }} style={styles.emptyCartImage} />
+        <Text style={styles.emptyText}>Your cart is empty</Text>
+        <Text style={styles.subText}>Add something yummy!</Text>
+        <TouchableOpacity style={styles.goBackBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.goBackText}>Browse Restaurants</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>🛒 Your Order</Text>
-      {/* Show Sync Badge if linked to a ride */}
-      {syncedRideId && (
-        <View style={styles.syncBadge}>
-            <Text style={{color: '#fff', fontWeight: 'bold'}}>⚡ Linked to your Ride</Text>
-        </View>
-      )}
-      <FlatList
-        data={cartItems}
-        keyExtractor={(item, index) => (item._id || item.id || index).toString() + index}
-        renderItem={({ item }) => (
-          <View style={styles.itemCard}>
-            <Image source={{ uri: item.image || 'https://via.placeholder.com/150' }} style={styles.image} />
-            <View style={styles.info}>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.mathText}>{formatPrice(item.price)} x {item.quantity}</Text>
-              <Text style={styles.price}>{formatPrice(item.price * item.quantity)}</Text>
+    <View style={styles.mainContainer}>
+      
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#1c1c1c" />
+        </TouchableOpacity>
+        <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>McDonald's</Text>
+            <View style={styles.deliveryTimeTag}>
+                <Text style={styles.deliveryTimeText}>20-25 mins to Home</Text>
+                <Ionicons name="chevron-down" size={12} color="green" />
             </View>
-            <TouchableOpacity style={styles.removeButton} onPress={() => removeFromCart(item.id || item._id)}>
-              <Text style={styles.removeText}>Remove</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
+        </View>
+        <Ionicons name="share-outline" size={24} color="#1c1c1c" />
+      </View>
 
-      <View style={styles.footer}>
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total:</Text>
-          <Text style={styles.totalAmount}>{formatPrice(totalPrice)}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 180 }}>
+        
+        {/* SAVINGS BANNER */}
+        <View style={styles.goldBanner}>
+            <Text style={styles.goldText}>
+                🥳 You saved <Text style={{fontWeight:'bold'}}>₹{138 + couponDiscount}</Text>, including <Text style={{fontWeight:'bold'}}>₹56</Text> with <Text style={{fontWeight:'bold', color:'#B8860B'}}>Gold</Text>
+            </Text>
         </View>
 
-        {/* 👇 WALLET SECTION */}
-        <View style={styles.walletSection}>
-            <Text style={styles.walletText}>Wallet Balance: <Text style={{fontWeight: 'bold', color: 'green'}}>₹{balance}</Text></Text>
-            
-            {/* Show Pay with Wallet Button ONLY if enough balance */}
-            {balance >= totalPrice ? (
-                <TouchableOpacity 
-                    style={[styles.payButton, styles.walletBtn]} 
-                    onPress={handleWalletCheckout}
-                >
-                    <Text style={styles.payText}>💳 Pay with Wallet</Text>
+        {/* DELIVERY DETAILS */}
+        <View style={styles.sectionCard}>
+            <View style={styles.deliveryRow}>
+                <View style={styles.iconBox}>
+                    <Ionicons name="home" size={20} color="#e23744" />
+                </View>
+                <View style={{flex: 1}}>
+                    <Text style={styles.sectionHeader}>Delivery at Home</Text>
+                    <Text style={styles.addressText} numberOfLines={1}>4-51-317 Maqduumnagar, Chaitanya...</Text>
+                </View>
+                <TouchableOpacity>
+                    <Text style={styles.changeText}>CHANGE</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+
+        {/* CART ITEMS */}
+        <View style={styles.sectionCard}>
+            {cartItems.map((item, index) => (
+                <View key={index} style={styles.itemRow}>
+                    <View style={styles.vegIconContainer}>
+                        <MaterialCommunityIcons name="checkbox-blank-circle-outline" size={16} color="green" />
+                    </View>
+                    <View style={styles.itemInfo}>
+                        <Text style={styles.itemName}>{item.name}</Text>
+                        <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
+                    </View>
+                    <View style={styles.qtyContainer}>
+                         <View style={styles.qtyBox}>
+                            <TouchableOpacity onPress={() => removeFromCart(item._id || item.id)}>
+                                <Text style={styles.qtyBtn}>-</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.qtyNum}>{item.quantity || 1}</Text>
+                            <TouchableOpacity>
+                                <Text style={styles.qtyBtn}>+</Text>
+                            </TouchableOpacity>
+                         </View>
+                         <Text style={styles.itemFinalPrice}>{formatPrice(item.price * (item.quantity || 1))}</Text>
+                    </View>
+                </View>
+            ))}
+        </View>
+
+        {/* OFFERS / COUPONS */}
+        <TouchableOpacity style={styles.offerCard} onPress={() => navigation.navigate('Coupons')}>
+            <MaterialCommunityIcons name="ticket-percent-outline" size={24} color="#364fc7" />
+            <View style={{flex: 1, marginLeft: 10}}>
+                <Text style={styles.offerText}>
+                    {coupon ? `Code ${coupon.code} applied!` : "View all coupons"}
+                </Text>
+                {coupon && <Text style={{fontSize:10, color:'green'}}>- ₹{coupon.discountAmount} saved</Text>}
+            </View>
+            {coupon ? (
+                <TouchableOpacity onPress={() => setCoupon(null)}>
+                    <Text style={{color:'red', fontSize:12, fontWeight:'bold'}}>REMOVE</Text>
                 </TouchableOpacity>
             ) : (
-                <Text style={styles.lowBalanceText}>Low Balance (Add money in Profile)</Text>
+                <Ionicons name="chevron-forward" size={16} color="#aaa" />
             )}
-        </View>
-        
-        {/* STRIPE CARD BUTTON (Always Visible as Backup) */}
-        <TouchableOpacity 
-            style={[styles.payButton, styles.cardBtn, loading && { opacity: 0.7 }]} 
-            onPress={handleCardCheckout}
-            disabled={loading}
-        >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.payText}>🏦 Pay with Card (Stripe)</Text>}
         </TouchableOpacity>
 
+        {/* TIP SECTION */}
+        <View style={styles.sectionCard}>
+            <Text style={styles.sectionHeader}>Tip your delivery partner</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tipScroll}>
+                {[20, 30, 50].map((amt) => (
+                    <TouchableOpacity 
+                        key={amt} 
+                        style={[styles.tipBtn, tip === amt && styles.tipBtnActive]}
+                        onPress={() => setTip(tip === amt ? 0 : amt)}
+                    >
+                        <Text style={styles.tipEmoji}>{amt === 20 ? '🙂' : amt === 30 ? '😊' : '💖'}</Text>
+                        <Text style={[styles.tipText, tip === amt && styles.tipTextActive]}>₹{amt}</Text>
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
+        </View>
+
+        {/* BILL SUMMARY */}
+        <View style={styles.sectionCard}>
+            <Text style={styles.sectionHeader}>Bill Summary</Text>
+            
+            <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Item total</Text>
+                <Text style={styles.billVal}>{formatPrice(itemTotal)}</Text>
+            </View>
+            
+            <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Packaging charges</Text>
+                <Text style={styles.billVal}>{formatPrice(packagingCharge)}</Text>
+            </View>
+
+            <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Platform fee</Text>
+                <Text style={styles.billVal}>{formatPrice(platformFee)}</Text>
+            </View>
+
+            {/* SHOW COUPON DISCOUNT ROW IF APPLIED */}
+            {coupon && (
+                <View style={styles.billRow}>
+                    <Text style={[styles.billLabel, {color: 'green'}]}>Coupon Discount</Text>
+                    <Text style={[styles.billVal, {color: 'green'}]}>- {formatPrice(couponDiscount)}</Text>
+                </View>
+            )}
+
+            <View style={styles.billRow}>
+                <Text style={styles.billLabel}>GST & Taxes</Text>
+                <Text style={styles.billVal}>{formatPrice(taxes)}</Text>
+            </View>
+
+            <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Feeding India donation</Text>
+                <Text style={styles.billVal}>{formatPrice(donationAmount)}</Text>
+            </View>
+
+            <View style={styles.divider} />
+            
+            <View style={styles.billRow}>
+                <Text style={styles.toPayLabel}>To pay</Text>
+                <Text style={styles.toPayVal}>{formatPrice(finalToPay)}</Text>
+            </View>
+        </View>
+
+        {/* DONATION */}
+        <View style={styles.donationCard}>
+            <View>
+                <Text style={styles.donationTitle}>Donate to Feeding India</Text>
+                <Text style={styles.donationSub}>Help serve a brighter future</Text>
+            </View>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                 <Text style={{fontWeight: 'bold', marginRight: 10}}>₹5</Text>
+                 <Switch 
+                    value={donate} 
+                    onValueChange={setDonate} 
+                    trackColor={{false: "#767577", true: "#e23744"}}
+                    thumbColor={"#fff"}
+                />
+            </View>
+        </View>
+
+      </ScrollView>
+
+      {/* STICKY FOOTER */}
+      <View style={styles.footerContainer}>
+            
+            {/* Insufficient Balance Warning */}
+            {isInsufficientWallet && (
+                 <View style={styles.warningStrip}>
+                     <Text style={styles.warningText}>Insufficient balance. Add money or pay remaining via card.</Text>
+                 </View>
+            )}
+
+            <View style={styles.footerContent}>
+                
+                {/* Wallet Checkbox */}
+                <TouchableOpacity style={styles.walletRow} onPress={() => setUseWallet(!useWallet)}>
+                    <MaterialCommunityIcons 
+                        name={useWallet ? "checkbox-marked" : "checkbox-blank-outline"} 
+                        size={24} 
+                        color={useWallet ? "#e23744" : "#888"} 
+                    />
+                    <View style={{marginLeft: 10}}>
+                         <Text style={styles.walletLabel}>Use <Text style={{fontWeight:'bold'}}>₹{Math.min(balance, finalToPay).toFixed(2)}</Text> from Wallet</Text>
+                         <Text style={styles.walletSub}>Balance: ₹{balance}</Text>
+                    </View>
+                </TouchableOpacity>
+
+                {/* Main Action Bar */}
+                <View style={styles.payActionRow}>
+                     <View>
+                         <Text style={styles.payMethodLabel}>PAY USING</Text>
+                         <TouchableOpacity style={styles.methodSelector}>
+                             <Text style={styles.selectedMethod}>
+                                 {useWallet && balance >= finalToPay ? 'Yumigo Wallet' : 'Visa / Mastercard'}
+                             </Text>
+                             <Ionicons name="caret-up" size={10} color="#333" style={{marginLeft: 4}} />
+                         </TouchableOpacity>
+                     </View>
+
+                     <TouchableOpacity 
+                        style={[styles.placeOrderBtn, loading && {opacity: 0.7}]} 
+                        onPress={handleCheckout}
+                        disabled={loading}
+                    >
+                         {loading ? <ActivityIndicator color="#fff" /> : (
+                             <View>
+                                 <Text style={styles.btnTotal}>{formatPrice(remainingToPay)}</Text>
+                                 <Text style={styles.btnLabel}>Place Order <Ionicons name="caret-forward" size={14} color="#fff"/></Text>
+                             </View>
+                         )}
+                     </TouchableOpacity>
+                </View>
+            </View>
       </View>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 15, marginTop: 40 },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 24, fontWeight: 'bold', color: '#888' },
-  subText: { fontSize: 16, color: '#aaa', marginTop: 10 },
-  header: { fontSize: 28, fontWeight: 'bold', marginBottom: 20 },
-  itemCard: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 12, padding: 10, marginBottom: 12, elevation: 2, alignItems: 'center' },
-  image: { width: 70, height: 70, borderRadius: 35, marginRight: 15 },
-  info: { flex: 1 },
-  name: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  mathText: { color: '#888', fontSize: 14, marginTop: 2 },
-  price: { fontSize: 16, fontWeight: 'bold', color: 'green', marginTop: 4 },
-  removeButton: { backgroundColor: '#ffdede', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  removeText: { color: 'red', fontWeight: 'bold', fontSize: 12 },
+  mainContainer: { flex: 1, backgroundColor: '#f2f2f2' },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+  emptyCartImage: { width: 120, height: 120, marginBottom: 20 },
+  emptyText: { fontSize: 20, fontWeight: 'bold' },
+  subText: { color: '#888', marginBottom: 20 },
+  goBackBtn: { padding: 10, backgroundColor: '#e23744', borderRadius: 8 },
+  goBackText: { color: '#fff', fontWeight: 'bold' },
+
+  // HEADER
+  header: { flexDirection: 'row', alignItems: 'center', padding: 15, paddingTop: 45, backgroundColor: '#fff', elevation: 2 },
+  headerTextContainer: { flex: 1, marginLeft: 15 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  deliveryTimeTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fff4', alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
+  deliveryTimeText: { fontSize: 12, color: 'green', fontWeight: 'bold', marginRight: 4 },
+
+  // GOLD BANNER
+  goldBanner: { backgroundColor: '#fff9c4', padding: 12, alignItems: 'center' },
+  goldText: { color: '#333', fontSize: 13 },
+
+  // COMMON CARD STYLE
+  sectionCard: { backgroundColor: '#fff', marginHorizontal: 10, marginTop: 10, borderRadius: 12, padding: 15, elevation: 1 },
   
-  footer: { marginTop: 20, backgroundColor: '#fff', padding: 20, borderRadius: 15, elevation: 5 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-  totalLabel: { fontSize: 20, fontWeight: 'bold' },
-  totalAmount: { fontSize: 20, fontWeight: 'bold', color: 'green' },
+  // DELIVERY
+  deliveryRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 5 },
+  iconBox: { width: 35, height: 35, borderRadius: 8, backgroundColor: '#fef2f2', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  sectionHeader: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 2 },
+  addressText: { color: '#666', fontSize: 13, width: '90%' },
+  contactName: { color: '#444', fontWeight: '500' },
+  changeText: { color: '#e23744', fontWeight: 'bold', fontSize: 12 },
+  divider: { height: 1, backgroundColor: '#eee', marginVertical: 10, marginLeft: 45 },
 
-  walletSection: { marginBottom: 15, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  walletText: { fontSize: 16, marginBottom: 10, color: '#555' },
-  lowBalanceText: { color: 'red', fontStyle: 'italic', fontSize: 12 },
+  // ITEM ROW
+  itemRow: { flexDirection: 'row', marginBottom: 20 },
+  vegIconContainer: { marginRight: 10, justifyContent: 'flex-start', marginTop: 4, position: 'relative' },
+  itemInfo: { flex: 1 },
+  itemName: { fontSize: 16, color: '#333', fontWeight: '500' },
+  itemPrice: { fontSize: 14, color: '#333', marginTop: 2 },
+  qtyContainer: { alignItems: 'flex-end' },
+  qtyBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: '#e23744', borderRadius: 8, paddingHorizontal: 5, height: 30, marginBottom: 5 },
+  qtyBtn: { color: '#e23744', fontSize: 18, fontWeight: 'bold', paddingHorizontal: 8 },
+  qtyNum: { color: '#e23744', fontSize: 14, fontWeight: 'bold' },
+  itemFinalPrice: { fontSize: 14, fontWeight: 'bold', color: '#333' },
 
-  payButton: { padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 10 },
-  walletBtn: { backgroundColor: '#111' }, // Black for Wallet
-  cardBtn: { backgroundColor: '#FF9900' }, // Orange for Stripe
-  payText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  // OFFER
+  offerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 10, marginTop: 10, padding: 15, borderRadius: 12 },
+  offerText: { flex: 1, marginLeft: 10, fontWeight: 'bold', color: '#333' },
+
+  // TIPS
+  tipSub: { fontSize: 12, color: '#888', marginBottom: 10 },
+  tipScroll: { flexDirection: 'row' },
+  tipBtn: { width: 70, height: 50, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee', alignItems: 'center', justifyContent: 'center', marginRight: 10, elevation: 1 },
+  tipBtnActive: { backgroundColor: '#ffeef0', borderColor: '#e23744' },
+  tipEmoji: { fontSize: 16 },
+  tipText: { fontSize: 12, fontWeight: 'bold', color: '#333' },
+  tipTextActive: { color: '#e23744' },
+
+  // BILL
+  billRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  billLabel: { fontSize: 13, color: '#555' },
+  billVal: { fontSize: 13, color: '#333' },
+  toPayLabel: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+  toPayVal: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+
+  // DONATION & CANCEL
+  donationCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', margin: 10, padding: 15, borderRadius: 12 },
+  donationTitle: { fontWeight: 'bold', fontSize: 14 },
+  donationSub: { color: '#888', fontSize: 11 },
+  cancellationCard: { margin: 10, padding: 15, backgroundColor: '#f9f9f9', borderRadius: 12 },
+  cancelTitle: { fontSize: 12, fontWeight: 'bold', color: '#666', marginBottom: 5, letterSpacing: 1 },
+  cancelText: { fontSize: 11, color: '#888', lineHeight: 16 },
+
+  // FOOTER
+  footerContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', elevation: 15, borderTopLeftRadius: 15, borderTopRightRadius: 15 },
+  warningStrip: { backgroundColor: '#fff9c4', padding: 8, alignItems: 'center' },
+  warningText: { fontSize: 11, color: '#856404', fontWeight: 'bold' },
+  footerContent: { padding: 15 },
+  walletRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  walletLabel: { fontSize: 14, color: '#333' },
+  walletSub: { fontSize: 12, color: '#888' },
+  
+  payActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  payMethodLabel: { fontSize: 10, color: '#888', fontWeight: 'bold', letterSpacing: 0.5 },
+  methodSelector: { flexDirection: 'row', alignItems: 'center' },
+  selectedMethod: { fontSize: 12, fontWeight: 'bold', color: '#333' },
+  placeOrderBtn: { backgroundColor: '#e23744', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 25, width: 160, alignItems: 'center', justifyContent: 'center' },
+  btnTotal: { color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
+  btnLabel: { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center' }
 });

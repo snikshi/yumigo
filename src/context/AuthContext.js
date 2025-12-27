@@ -8,8 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true); 
 
-  // 👇 REPLACE THIS URL WITH YOUR ACTUAL RENDER URL
-  // (Check your Render Dashboard to see if it ends in .com or .app)
+  // 👇 REPLACE THIS WITH YOUR ACTUAL RENDER URL
   const API_URL = "https://yumigo-api.onrender.com/api/auth"; 
 
   // 1. CHECK STORAGE ON APP START
@@ -29,31 +28,25 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  // 2. LOGIN (CONNECTED TO REAL BACKEND)
+  // 2. LOGIN
   const login = async (email, password) => {
     try {
-      // 👇 SAFETY CHECK: If email is missing, stop immediately.
-      if (!email) {
-          return { success: false, message: "Email is required" };
-      }
+      if (!email) return { success: false, message: "Email is required" };
 
       const response = await fetch(`${API_URL}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // 👇 The ?. prevents the crash even if email is weird
         body: JSON.stringify({ email: email?.trim(), password }), 
       });
 
-      // ... rest of the code ...
       const data = await response.json();
 
       if (response.ok) {
-        // ✅ Login Success: Save Real MongoDB User
+        // ✅ Login Success: Save User to State & Storage
         setUser(data.user);
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
         return { success: true };
       } else {
-        // ❌ Login Failed: Show Server Message
         return { success: false, message: data.message || "Invalid credentials" };
       }
     } catch (e) {
@@ -62,7 +55,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 3. SIGNUP (Now uses Context)
+  // 3. SIGNUP
   const signup = async (name, email, password) => {
     try {
       const response = await fetch(`${API_URL}/register`, {
@@ -89,25 +82,42 @@ export const AuthProvider = ({ children }) => {
     await AsyncStorage.removeItem('user'); 
   };
 
-  // 5. UPDATE USER
+  // 5. UPDATE USER (Fixed for Image Persistence)
   const updateUser = async (updatedData) => {
       if (!user) return;
+
       try {
+        // ✅ STEP A: Optimistic Update (Update Local App First)
+        // This ensures the Image URI sticks instantly without waiting for Server
+        const mergedUser = { ...user, ...updatedData };
+        setUser(mergedUser);
+        await AsyncStorage.setItem('user', JSON.stringify(mergedUser));
+
+        // ✅ STEP B: Send changes to Backend (Background Sync)
+        // We wrap this in a separate try/catch so UI update doesn't fail if server is down
         const response = await fetch(`${API_URL}/update`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user._id || user.id, ...updatedData }),
+          body: JSON.stringify({ 
+              userId: user._id || user.id, 
+              ...updatedData 
+              // Note: Sending local file URI to server won't upload the file, 
+              // but it will save the string path if your DB schema allows it.
+          }),
         });
         
         const data = await response.json();
+        
         if (response.ok) {
-          const newProfile = data.user;
-          setUser(newProfile);
-          await AsyncStorage.setItem('user', JSON.stringify(newProfile));
-          Alert.alert("Success", "Profile Updated!");
+            console.log("Backend synced successfully");
+        } else {
+            console.warn("Backend update failed, but local data saved:", data.message);
         }
+
       } catch (e) {
           console.error("Update failed", e);
+          // Note: We do NOT revert the user state here, so the user keeps their changes locally
+          Alert.alert("Note", "Profile saved locally, but server sync failed.");
       }
   };
 

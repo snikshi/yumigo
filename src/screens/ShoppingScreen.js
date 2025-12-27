@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useCart } from '../context/CartContext'; // Reuse your existing Cart!
+import { useCart } from '../context/CartContext'; 
 
 const { width } = Dimensions.get('window');
 
@@ -37,7 +37,7 @@ export default function ShoppingScreen() {
     fetchProducts();
   }, []);
 
-  // 2. DEMO DATA LOADER (Run this once to fill DB)
+  // 2. DEMO DATA LOADER
   const loadDemoData = async () => {
     const demoItems = [
       { name: "Sony XM4 Headphones", category: "Electronics", price: 19999, oldPrice: 24999, image: "https://m.media-amazon.com/images/I/71o8Q5XJS5L._AC_SL1500_.jpg", tags: ["music", "bass"] },
@@ -62,9 +62,13 @@ export default function ShoppingScreen() {
     fetchProducts();
   };
 
-  // 3. RENDER PRODUCT CARD
+  // 3. RENDER PRODUCT CARD (Updated with Navigation)
   const renderProduct = ({ item }) => (
-    <View style={styles.card}>
+    <TouchableOpacity 
+        style={styles.card}
+        // 👇 This opens the Detail Screen
+        onPress={() => navigation.navigate('ProductDetail', { product: item })}
+    >
       {/* Discount Badge */}
       {item.oldPrice && (
         <View style={styles.badge}>
@@ -83,6 +87,7 @@ export default function ShoppingScreen() {
             {item.oldPrice && <Text style={styles.oldPrice}>₹{item.oldPrice}</Text>}
         </View>
         
+        {/* Quick Add Button */}
         <TouchableOpacity 
             style={styles.addBtn}
             onPress={() => {
@@ -90,10 +95,10 @@ export default function ShoppingScreen() {
                 Alert.alert("Added", `${item.name} in Cart 🛒`);
             }}
         >
-            <Text style={styles.addText}>Add to Cart</Text>
+            <Text style={styles.addText}>Add</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -139,7 +144,7 @@ export default function ShoppingScreen() {
                 keyExtractor={item => item._id}
                 numColumns={2}
                 columnWrapperStyle={{justifyContent: 'space-between', paddingHorizontal: 10}}
-                scrollEnabled={false} // Since we are inside ScrollView
+                scrollEnabled={false} 
             />
         )}
         

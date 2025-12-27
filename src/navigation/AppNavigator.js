@@ -21,6 +21,10 @@ import RideHistoryScreen from '../screens/RideHistoryScreen';
 import YourRideScreen from '../screens/YourRideScreen';
 import SellerScreen from '../screens/SellerScreen'; // 👈 Seller Screen Imported
 import ShoppingScreen from '../screens/ShoppingScreen';
+import ProductDetailScreen from '../screens/ProductDetailScreen'; // 👈 Import it
+import SupportScreen from '../screens/SupportScreen';
+import WalletScreen from '../screens/WalletScreen';
+import CouponsScreen from '../screens/CouponsScreen'; // ✅ Correct
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -79,7 +83,11 @@ export default function AppNavigator() {
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} />
           
-          <Stack.Screen name="RestaurantDetail" component={RestaurantDetailScreen} />
+          <Stack.Screen 
+  name="RestaurantDetail" 
+  component={RestaurantDetailScreen} 
+  options={{ headerShown: false }} // 👈 Hide default header
+/>
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="History" component={OrderHistoryScreen} />
           <Stack.Screen name="TrackOrder" component={TrackOrderScreen} /> 
@@ -87,6 +95,10 @@ export default function AppNavigator() {
           <Stack.Screen name="Ride" component={RideScreen} />
           <Stack.Screen name="RideHistory" component={RideHistoryScreen} />
            <Stack.Screen name="YourRide" component={YourRideScreen} />
+           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+           <Stack.Screen name="Support" component={SupportScreen} />
+           <Stack.Screen name="Wallet" component={WalletScreen} />
+           <Stack.Screen name="Coupons" component={CouponsScreen} options={{headerShown: false}} />
         </>
       ) : (
         // 🔒 IF LOGGED OUT

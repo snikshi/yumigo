@@ -1,11 +1,37 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, Polyline } from 'react-native-maps'; // 👈 IMPORT MAP
+import MapView, { Marker } from 'react-native-maps'; 
 import { useOrder } from '../context/OrderContext'; 
+import * as Notifications from 'expo-notifications';
 
 export default function TrackOrderScreen({ navigation }) {
   const { liveOrder } = useOrder();
+
+  // 👇 NEW: Notification Logic
+  useEffect(() => {
+    if (!liveOrder) return;
+
+    if (liveOrder.status === 'Out for Delivery') {
+        Notifications.scheduleNotificationAsync({
+            content: {
+                title: "Order Picked Up! 🍛",
+                body: "Your delivery partner is on the way. Get plates ready!",
+            },
+            trigger: null, // Send immediately
+        });
+    }
+
+    if (liveOrder.status === 'Delivered') {
+        Notifications.scheduleNotificationAsync({
+            content: {
+                title: "Enjoy your meal! 😋",
+                body: "Your order has been delivered safely.",
+            },
+            trigger: null,
+        });
+    }
+  }, [liveOrder?.status]); // 👈 Runs whenever status changes
 
   if (!liveOrder) {
     return (
@@ -85,7 +111,7 @@ export default function TrackOrderScreen({ navigation }) {
         </View>
       </View>
 
-      {/* STEPS LIST (Same as before) */}
+      {/* STEPS LIST */}
       <View style={styles.statusContainer}>
         {steps.map((step, index) => {
           const isActive = index <= currentStep;
@@ -118,7 +144,6 @@ const styles = StyleSheet.create({
   holdBanner: { backgroundColor: '#FF9900', padding: 15, flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, borderRadius: 10, marginBottom: 10 },
   holdText: { color: '#fff', fontWeight: 'bold', marginLeft: 10, flex: 1 },
 
-  // Updated Map Styles
   mapContainer: { height: 250, width: '100%', position: 'relative' },
   map: { width: '100%', height: '100%' },
 
