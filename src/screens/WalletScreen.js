@@ -6,9 +6,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useWallet } from '../context/WalletContext'; 
 import * as LocalAuthentication from 'expo-local-authentication'; // 👈 1. Import Security
+import { useAuth } from '../context/AuthContext';
 
 export default function WalletScreen({ navigation }) {
   const { balance, transactions, addMoney } = useWallet();
+  const { user } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [amount, setAmount] = useState('');
   
@@ -69,33 +71,19 @@ export default function WalletScreen({ navigation }) {
 
       {/* 💳 SECURE CARD UI */}
       <View style={styles.cardContainer}>
-        <ImageBackground 
-            source={{uri: 'https://images.squarespace-cdn.com/content/v1/546c18a6e4b05a70ad8190fe/1569818246696-YXA0I6KTXJNM5TX7OLZ1/Card%2BFront.png'}} 
-            style={styles.card} 
-            imageStyle={{borderRadius: 20}}
-        >
+        <ImageBackground source={{uri: '...'}} style={styles.card} imageStyle={{borderRadius: 20}}>
             <View style={styles.cardContent}>
-                <Text style={styles.cardLabel}>Total Balance</Text>
-                
-                {/* 👇 HIDDEN BALANCE LOGIC */}
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                    {isAuthenticated ? (
-                        <Text style={styles.balance}>₹ {balance.toLocaleString()}</Text>
-                    ) : (
-                        <Text style={styles.balance}>₹ ****</Text>
-                    )}
-                    
-                    {!isAuthenticated && (
-                        <TouchableOpacity onPress={authenticate} style={styles.unlockBtn}>
-                            <Ionicons name="eye-off" size={20} color="#fff" />
-                            <Text style={styles.unlockText}>Tap to View</Text>
-                        </TouchableOpacity>
-                    )}
+                <View>
+                    <Text style={styles.cardLabel}>Yumi Balance</Text>
+                    <Text style={styles.balance}>₹ {isAuthenticated ? balance.toLocaleString() : '****'}</Text>
                 </View>
                 
-                <View style={styles.cardFooter}>
-                    <Text style={styles.cardNumber}>**** **** **** 1234</Text>
-                    <Text style={styles.expiry}>12/28</Text>
+                {/* 👇 SHOW CRYPTO ADDRESS */}
+                <View>
+                    <Text style={styles.cardLabel}>Web3 Address (Polygon)</Text>
+                    <Text style={{color: '#fff', fontSize: 10, fontFamily: 'monospace'}}>
+                        {user?.walletAddress ? user.walletAddress : "Creating Wallet..."}
+                    </Text>
                 </View>
             </View>
         </ImageBackground>
