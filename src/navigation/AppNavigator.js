@@ -34,28 +34,28 @@ const Tab = createBottomTabNavigator();
 function MainTabs() {
   return (
     <Tab.Navigator
-  screenOptions={({ route }) => ({
-    headerShown: false,
-    tabBarIcon: ({ color, size }) => {
-      let iconName;
-      if (route.name === 'Home') iconName = 'home';
-      else if (route.name === 'Feed') iconName = 'play-circle'; // 👈 Icon for Feed
-      else if (route.name === 'Cart') iconName = 'cart';
-      else if (route.name === 'Profile') iconName = 'person';
-      else if (route.name === 'Seller') iconName = 'restaurant';
-      return <Ionicons name={iconName} size={size} color={color} />;
-    },
-    tabBarActiveTintColor: '#FF9900',
-    tabBarInactiveTintColor: 'gray',
-    tabBarStyle: { backgroundColor: '#000', borderTopColor: '#333' } // Dark mode style for video app
-  })}
->
-  <Tab.Screen name="Home" component={HomeScreen} />
-  <Tab.Screen name="Feed" component={SocialFeedScreen} /> {/* 👈 Add Tab */}
-  <Tab.Screen name="Shop" component={ShoppingScreen} options={{ tabBarIcon: ({color}) => <Ionicons name="pricetags" size={24} color={color}/> }}/>
-  <Tab.Screen name="Cart" component={CartScreen} />
-  <Tab.Screen name="Profile" component={ProfileScreen} />
-</Tab.Navigator>
+      initialRouteName="Home"
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarIcon: ({ color, size }) => {
+          let iconName;
+          if (route.name === 'Home') iconName = 'home';
+          else if (route.name === 'Shop') iconName = 'pricetags'; // Added Shop icon logic
+          else if (route.name === 'Cart') iconName = 'cart';
+          else if (route.name === 'Profile') iconName = 'person';
+          else if (route.name === 'Seller') iconName = 'restaurant';
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#FF9900',
+        tabBarInactiveTintColor: 'gray',
+      })}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Shop" component={ShoppingScreen} />
+      <Tab.Screen name="Cart" component={CartScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Seller" component={SellerScreen} />
+    </Tab.Navigator>
   );
 }
 
