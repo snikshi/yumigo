@@ -92,7 +92,7 @@ export default function CartScreen({ navigation, route }) {
       const response = await fetch('https://yumigo-api.onrender.com/api/payments/intents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: remainingToPay }), 
+        body: JSON.stringify({ amount: Math.round(remainingToPay * 100) }), 
       });
       const json = await response.json();
       
