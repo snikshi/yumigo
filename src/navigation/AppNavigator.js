@@ -19,18 +19,16 @@ import FoodScreen from '../screens/FoodScreen';
 import RideScreen from '../screens/RideScreen';
 import RideHistoryScreen from '../screens/RideHistoryScreen';
 import YourRideScreen from '../screens/YourRideScreen';
-import SellerScreen from '../screens/SellerScreen'; // 👈 Seller Screen Imported
+import SellerScreen from '../screens/SellerScreen';
 import ShoppingScreen from '../screens/ShoppingScreen';
-import ProductDetailScreen from '../screens/ProductDetailScreen'; // 👈 Import it
+import ProductDetailScreen from '../screens/ProductDetailScreen';
 import SupportScreen from '../screens/SupportScreen';
 import WalletScreen from '../screens/WalletScreen';
-import CouponsScreen from '../screens/CouponsScreen'; // ✅ Correct
-import SocialFeedScreen from '../screens/SocialFeedScreen';
+import CouponsScreen from '../screens/CouponsScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// 🏠 1. The Bottom Tabs
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -40,7 +38,7 @@ function MainTabs() {
         tabBarIcon: ({ color, size }) => {
           let iconName;
           if (route.name === 'Home') iconName = 'home';
-          else if (route.name === 'Shop') iconName = 'pricetags'; // Added Shop icon logic
+          else if (route.name === 'Shop') iconName = 'pricetags';
           else if (route.name === 'Cart') iconName = 'cart';
           else if (route.name === 'Profile') iconName = 'person';
           else if (route.name === 'Seller') iconName = 'restaurant';
@@ -59,7 +57,6 @@ function MainTabs() {
   );
 }
 
-// 🔀 2. The Main Navigator
 export default function AppNavigator() {
   const { user, loading } = useAuth();
 
@@ -74,33 +71,26 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user ? (
-        // 🔓 IF LOGGED IN
-        <>
+        <Stack.Group>
           <Stack.Screen name="MainTabs" component={MainTabs} />
-          
-          <Stack.Screen 
-  name="RestaurantDetail" 
-  component={RestaurantDetailScreen} 
-  options={{ headerShown: false }} // 👈 Hide default header
-/>
+          <Stack.Screen name="RestaurantDetail" component={RestaurantDetailScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="History" component={OrderHistoryScreen} />
-          <Stack.Screen name="TrackOrder" component={TrackOrderScreen} /> 
+          <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
           <Stack.Screen name="Food" component={FoodScreen} />
           <Stack.Screen name="Ride" component={RideScreen} />
           <Stack.Screen name="RideHistory" component={RideHistoryScreen} />
-           <Stack.Screen name="YourRide" component={YourRideScreen} />
-           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
-           <Stack.Screen name="Support" component={SupportScreen} />
-           <Stack.Screen name="Wallet" component={WalletScreen} />
-           <Stack.Screen name="Coupons" component={CouponsScreen} options={{headerShown: false}} />
-        </>
+          <Stack.Screen name="YourRide" component={YourRideScreen} />
+          <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+          <Stack.Screen name="Support" component={SupportScreen} />
+          <Stack.Screen name="Wallet" component={WalletScreen} />
+          <Stack.Screen name="Coupons" component={CouponsScreen} />
+        </Stack.Group>
       ) : (
-        // 🔒 IF LOGGED OUT
-        <>
+        <Stack.Group>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
-        </>
+        </Stack.Group>
       )}
     </Stack.Navigator>
   );

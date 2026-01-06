@@ -1,34 +1,32 @@
 import React, { createContext, useState, useContext } from 'react';
 
+// 1. Create Context
 const WalletContext = createContext();
 
+// 2. Named Export for Provider
 export const WalletProvider = ({ children }) => {
-  const [balance, setBalance] = useState(0); // Initial Balance
+  const [balance, setBalance] = useState(0); 
   
-  // 👇 Store Transaction History
   const [transactions, setTransactions] = useState([
     { id: '1', title: 'Welcome Bonus', amount: 500, type: 'credit', date: new Date().toDateString() }
   ]);
 
-  // 1. PAY (Deduct Money)
-  const payFromWallet = (amount, description) => {
+  const payFromWallet = (amount) => {
     if (balance >= amount) {
       setBalance(prev => prev - amount);
-      // Add to history
       const newTxn = {
         id: Date.now().toString(),
-        title: description || 'Payment',
+        title: 'Order Payment',
         amount: amount,
         type: 'debit',
         date: new Date().toDateString()
       };
-      setTransactions(prev => [newTxn, ...prev]); // Add to top
+      setTransactions(prev => [newTxn, ...prev]);
       return true;
     }
     return false;
   };
 
-  // 2. ADD MONEY (Top Up)
   const addMoney = (amount) => {
     setBalance(prev => prev + Number(amount));
     const newTxn = {
@@ -48,7 +46,7 @@ export const WalletProvider = ({ children }) => {
   );
 };
 
-;
+// 3. Named Export for Hook (ONLY THIS ONE)
 export const useWallet = () => {
   const context = useContext(WalletContext);
   if (!context) {
@@ -56,4 +54,3 @@ export const useWallet = () => {
   }
   return context;
 };
-export default useWallet;

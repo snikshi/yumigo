@@ -1,168 +1,179 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+    View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Modal 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker } from 'react-native-maps'; 
-import { useOrder } from '../context/OrderContext'; 
-import * as Notifications from 'expo-notifications';
+import { useNavigation } from '@react-navigation/native';
+import MapView, { Marker } from 'react-native-maps'; // Ensure you have react-native-maps installed
+import { useOrder } from '../context/OrderContext';
+import { useAuth } from '../context/AuthContext';
 
-export default function TrackOrderScreen({ navigation }) {
-  const { liveOrder } = useOrder();
+export default function TrackOrderScreen() {
+    const navigation = useNavigation();
+    const { currentOrder } = useOrder();
+    const { user } = useAuth();
 
-  // 👇 NEW: Notification Logic
-  useEffect(() => {
-    if (!liveOrder) return;
+    // Simulation State
+    const [status, setStatus] = useState('Preparing');
+    const [driverLoc, setDriverLoc] = useState({ latitude: 17.3850, longitude: 78.4867 });
+    const [showReward, setShowReward] = useState(false);
+    const [rewardAmount, setRewardAmount] = useState(0);
 
-    if (liveOrder.status === 'Out for Delivery') {
-        Notifications.scheduleNotificationAsync({
-            content: {
-                title: "Order Picked Up! 🍛",
-                body: "Your delivery partner is on the way. Get plates ready!",
-            },
-            trigger: null, // Send immediately
-        });
-    }
+    // 🟢 SIMULATE DRIVER MOVEMENT & STATUS UPDATES
+    useEffect(() => {
+        if (!currentOrder) return;
 
-    if (liveOrder.status === 'Delivered') {
-        Notifications.scheduleNotificationAsync({
-            content: {
-                title: "Enjoy your meal! 😋",
-                body: "Your order has been delivered safely.",
-            },
-            trigger: null,
-        });
-    }
-  }, [liveOrder?.status]); // 👈 Runs whenever status changes
+        const timer1 = setTimeout(() => setStatus('On the way'), 3000);
+        
+        // Simulate Movement
+        const interval = setInterval(() => {
+            setDriverLoc(prev => ({
+                latitude: prev.latitude + 0.001,
+                longitude: prev.longitude + 0.001
+            }));
+        }, 2000);
 
-  if (!liveOrder) {
+        const timer2 = setTimeout(() => {
+            handleDeliveryCompletion();
+        }, 8000); // Deliver after 8 seconds for demo
+
+        return () => {
+            clearTimeout(timer1);
+            clearTimeout(timer2);
+            clearInterval(interval);
+        };
+    }, []);
+
+    // 🟢 CALL BACKEND TO CONFIRM DELIVERY & GET TOKENS
+    const handleDeliveryCompletion = async () => {
+        setStatus('Delivered');
+        try {
+            // Replace with your render URL
+            const res = await fetch('https://yumigo-api.onrender.com/api/orders/update-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: currentOrder?._id, status: 'Delivered' })
+            });
+            const data = await res.json();
+            
+            if (data.rewardEarned) {
+                setRewardAmount(data.rewardEarned);
+                setShowReward(true);
+            }
+        } catch (e) {
+            console.error("Reward Error", e);
+        }
+    };
+
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>No active order found 🧐</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.homeBtn}>
-            <Text style={styles.homeText}>Go to Home</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const isHeld = liveOrder.status === 'Scheduled';
-  
-  // Status Steps Logic
-  let currentStep = 0;
-  if (isHeld) currentStep = 0;
-  if (liveOrder.status === 'Preparing') currentStep = 1;
-  if (liveOrder.status === 'Out for Delivery') currentStep = 2;
-  if (liveOrder.status === 'Delivered') currentStep = 3;
-
-  const steps = [
-    { title: "Order Placed", icon: "receipt-outline" },
-    { title: "Preparing", icon: "fast-food-outline" },
-    { title: "Out for Delivery", icon: "bicycle-outline" },
-    { title: "Delivered", icon: "home-outline" }
-  ];
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('MainTabs')}>
-          <Ionicons name="close" size={30} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Order #{liveOrder._id ? liveOrder._id.slice(-6) : '...'}</Text>
-        <View style={{ width: 30 }} /> 
-      </View>
-
-      {isHeld && (
-        <View style={styles.holdBanner}>
-            <Ionicons name="time" size={24} color="#fff" />
-            <Text style={styles.holdText}>Ride is long 🚖. Holding order so it arrives fresh!</Text>
-        </View>
-      )}
-
-      {/* 👇 REAL MAP VIEW */}
-      <View style={styles.mapContainer}>
-        <MapView
-            style={styles.map}
-            initialRegion={{
-                latitude: 17.3850,
-                longitude: 78.4867,
-                latitudeDelta: 0.05,
-                longitudeDelta: 0.05,
-            }}
-        >
-            {/* Restaurant Marker */}
-            <Marker coordinate={{ latitude: 17.3850, longitude: 78.4867 }} title="Restaurant">
-                 <View style={{backgroundColor: 'white', padding: 5, borderRadius: 20}}>
-                    <Text>🍕</Text>
-                 </View>
-            </Marker>
-
-            {/* Home Marker */}
-            <Marker coordinate={{ latitude: 17.4200, longitude: 78.5000 }} title="Home" pinColor="blue" />
-
-            {/* Delivery Boy (Only show if Out for Delivery) */}
-            {!isHeld && (
-                <Marker coordinate={{ latitude: 17.4000, longitude: 78.4900 }} title="Delivery Partner">
-                    <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png' }} style={{width: 35, height: 35}} />
-                </Marker>
-            )}
-        </MapView>
-
-        <View style={[styles.statusBadge, isHeld && { backgroundColor: '#444' }]}>
-            <Text style={styles.statusText}>{liveOrder.status.toUpperCase()}</Text>
-        </View>
-      </View>
-
-      {/* STEPS LIST */}
-      <View style={styles.statusContainer}>
-        {steps.map((step, index) => {
-          const isActive = index <= currentStep;
-          return (
-            <View key={index} style={styles.stepRow}>
-              <View style={styles.iconContainer}>
-                <View style={[styles.circle, isActive ? styles.activeCircle : styles.inactiveCircle]}>
-                    <Ionicons name={step.icon} size={18} color={isActive ? "#fff" : "#888"} />
-                </View>
-                {index < 3 && <View style={[styles.line, isActive ? styles.activeLine : styles.inactiveLine]} />}
-              </View>
-              <View style={styles.textContainer}>
-                <Text style={[styles.stepTitle, isActive && styles.activeText]}>{step.title}</Text>
-                {index === 0 && isHeld && <Text style={{color: 'orange', fontSize: 12}}>Waiting for sync...</Text>}
-              </View>
+        <View style={styles.container}>
+            
+            {/* MAP VIEW */}
+            <View style={styles.mapContainer}>
+                <MapView
+                    style={styles.map}
+                    initialRegion={{
+                        latitude: 17.3850,
+                        longitude: 78.4867,
+                        latitudeDelta: 0.05,
+                        longitudeDelta: 0.05,
+                    }}
+                >
+                    <Marker coordinate={driverLoc}>
+                        <Image source={{uri: 'https://cdn-icons-png.flaticon.com/512/3063/3063823.png'}} style={{width:40, height:40}} />
+                    </Marker>
+                </MapView>
+                
+                {/* BACK BUTTON */}
+                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Home')}>
+                     <Ionicons name="arrow-back" size={24} color="#000" />
+                </TouchableOpacity>
             </View>
-          );
-        })}
-      </View>
-    </SafeAreaView>
-  );
+
+            {/* STATUS CARD */}
+            <View style={styles.infoCard}>
+                <View style={styles.handle} />
+                <Text style={styles.timeText}>Arriving in 15 mins</Text>
+                
+                <View style={styles.statusRow}>
+                    <View style={styles.step}>
+                        <Ionicons name="restaurant" size={20} color={status === 'Preparing' ? 'orange' : '#ccc'} />
+                    </View>
+                    <View style={styles.line} />
+                    <View style={styles.step}>
+                        <Ionicons name="bicycle" size={20} color={status === 'On the way' ? 'orange' : '#ccc'} />
+                    </View>
+                    <View style={styles.line} />
+                    <View style={styles.step}>
+                        <Ionicons name="checkmark-circle" size={20} color={status === 'Delivered' ? 'green' : '#ccc'} />
+                    </View>
+                </View>
+                <Text style={styles.statusText}>{status}</Text>
+
+                {/* DRIVER INFO */}
+                <View style={styles.driverRow}>
+                    <Image source={{uri: 'https://randomuser.me/api/portraits/men/32.jpg'}} style={styles.driverPic} />
+                    <View style={{marginLeft: 10, flex: 1}}>
+                        <Text style={styles.driverName}>Ramesh Kumar</Text>
+                        <Text style={styles.driverRating}>⭐ 4.8 • Vaccinated</Text>
+                    </View>
+                    <TouchableOpacity style={styles.callBtn}>
+                        <Ionicons name="call" size={20} color="green" />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* 🎁 REWARD POPUP MODAL */}
+            <Modal visible={showReward} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.rewardCard}>
+                        <Image source={{uri: 'https://cdn-icons-png.flaticon.com/512/6198/6198527.png'}} style={{width: 80, height: 80, marginBottom: 10}} />
+                        <Text style={styles.rewardTitle}>Order Delivered!</Text>
+                        <Text style={styles.rewardSub}>You earned crypto rewards</Text>
+                        
+                        <View style={styles.tokenBadge}>
+                            <Text style={styles.tokenText}>+{rewardAmount} YUMI</Text>
+                        </View>
+
+                        <TouchableOpacity style={styles.claimBtn} onPress={() => { setShowReward(false); navigation.navigate('Home'); }}>
+                            <Text style={styles.claimText}>CLAIM REWARD</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, paddingTop: 40 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold' },
-  
-  holdBanner: { backgroundColor: '#FF9900', padding: 15, flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, borderRadius: 10, marginBottom: 10 },
-  holdText: { color: '#fff', fontWeight: 'bold', marginLeft: 10, flex: 1 },
+    container: { flex: 1, backgroundColor: '#fff' },
+    mapContainer: { flex: 0.6 },
+    map: { width: '100%', height: '100%' },
+    backBtn: { position: 'absolute', top: 50, left: 20, backgroundColor: '#fff', padding: 10, borderRadius: 20, elevation: 5 },
+    
+    infoCard: { flex: 0.4, backgroundColor: '#fff', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 20, elevation: 20, marginTop: -20 },
+    handle: { width: 40, height: 4, backgroundColor: '#ccc', alignSelf: 'center', borderRadius: 2, marginBottom: 20 },
+    timeText: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
+    
+    statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+    step: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f2f2f2', alignItems: 'center', justifyContent: 'center' },
+    line: { width: 50, height: 2, backgroundColor: '#f2f2f2' },
+    statusText: { textAlign: 'center', color: '#888', marginBottom: 20 },
 
-  mapContainer: { height: 250, width: '100%', position: 'relative' },
-  map: { width: '100%', height: '100%' },
+    driverRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 20 },
+    driverPic: { width: 50, height: 50, borderRadius: 25 },
+    driverName: { fontWeight: 'bold', fontSize: 16 },
+    driverRating: { color: '#666', fontSize: 12 },
+    callBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#e8f5e9', alignItems: 'center', justifyContent: 'center' },
 
-  statusBadge: { position: 'absolute', bottom: 20, alignSelf: 'center', backgroundColor: 'green', padding: 10, borderRadius: 10 },
-  statusText: { color: '#fff', fontWeight: 'bold' },
-  
-  statusContainer: { flex: 1, padding: 30 },
-  stepRow: { flexDirection: 'row', height: 70 },
-  iconContainer: { alignItems: 'center', marginRight: 15 },
-  circle: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
-  activeCircle: { backgroundColor: 'green' },
-  inactiveCircle: { backgroundColor: '#eee' },
-  line: { width: 2, flex: 1, backgroundColor: '#eee', position: 'absolute', top: 34, zIndex: 1 },
-  activeLine: { backgroundColor: 'green' },
-  inactiveLine: { backgroundColor: '#eee' },
-  textContainer: { justifyContent: 'flex-start', paddingTop: 5 },
-  stepTitle: { fontSize: 16, color: '#888' },
-  activeText: { color: '#000', fontWeight: 'bold' },
-  errorText: { fontSize: 18, marginBottom: 20 },
-  homeBtn: { backgroundColor: '#333', padding: 10, borderRadius: 8 },
-  homeText: { color: '#fff' }
+    // Modal
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
+    rewardCard: { width: '80%', backgroundColor: '#fff', borderRadius: 20, padding: 30, alignItems: 'center', elevation: 10 },
+    rewardTitle: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+    rewardSub: { color: '#888', marginBottom: 20 },
+    tokenBadge: { backgroundColor: '#FFF8E1', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: '#FFD54F', marginBottom: 20 },
+    tokenText: { fontSize: 24, fontWeight: 'bold', color: '#B8860B' },
+    claimBtn: { backgroundColor: '#FF9900', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 },
+    claimText: { color: '#fff', fontWeight: 'bold', letterSpacing: 1 }
 });

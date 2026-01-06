@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true); 
 
-  // 👇 REPLACE THIS WITH YOUR ACTUAL RENDER URL
+  // 👇 YOUR RENDER URL
   const API_URL = "https://yumigo-api.onrender.com/api/auth"; 
 
   // 1. CHECK STORAGE ON APP START
@@ -16,6 +16,8 @@ export const AuthProvider = ({ children }) => {
     const loadUser = async () => {
       try {
         const storedUser = await AsyncStorage.getItem('user');
+        const storedToken = await AsyncStorage.getItem('token');
+        
         if (storedUser) {
           setUser(JSON.parse(storedUser)); 
         }
@@ -32,6 +34,8 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       if (!email) return { success: false, message: "Email is required" };
+      
+      console.log("Logging in...", email); // Debug Log
 
       const response = await fetch(`${API_URL}/login`, {
         method: "POST",
@@ -40,11 +44,18 @@ export const AuthProvider = ({ children }) => {
       });
 
       const data = await response.json();
+      console.log("Login Response:", data); // Debug Log
 
-      if (response.ok) {
-        // ✅ Login Success: Save User to State & Storage
+      if (response.ok && data.success) {
+        // ✅ Login Success
         setUser(data.user);
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        
+        // 🔑 SAVE TOKEN (Critical for new security)
+        if (data.token) {
+            await AsyncStorage.setItem('token', data.token);
+        }
+        
         return { success: true };
       } else {
         return { success: false, message: data.message || "Invalid credentials" };
@@ -66,7 +77,11 @@ export const AuthProvider = ({ children }) => {
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success) {
+        // Auto-Login after Signup
+        setUser(data.user);
+        await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        if (data.token) await AsyncStorage.setItem('token', data.token);
         return { success: true };
       } else {
         return { success: false, message: data.message || "Signup failed" };
@@ -80,44 +95,33 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     setUser(null);
     await AsyncStorage.removeItem('user'); 
+    await AsyncStorage.removeItem('token');
   };
 
-  // 5. UPDATE USER (Fixed for Image Persistence)
+  // 5. UPDATE USER
   const updateUser = async (updatedData) => {
       if (!user) return;
-
       try {
-        // ✅ STEP A: Optimistic Update (Update Local App First)
-        // This ensures the Image URI sticks instantly without waiting for Server
+        // Optimistic Update
         const mergedUser = { ...user, ...updatedData };
         setUser(mergedUser);
         await AsyncStorage.setItem('user', JSON.stringify(mergedUser));
 
-        // ✅ STEP B: Send changes to Backend (Background Sync)
-        // We wrap this in a separate try/catch so UI update doesn't fail if server is down
-        const response = await fetch(`${API_URL}/update`, {
+        // Sync with Server
+        const token = await AsyncStorage.getItem('token'); // Get Token
+        await fetch(`${API_URL}/update`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` // Send Token
+          },
           body: JSON.stringify({ 
               userId: user._id || user.id, 
               ...updatedData 
-              // Note: Sending local file URI to server won't upload the file, 
-              // but it will save the string path if your DB schema allows it.
           }),
         });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            console.log("Backend synced successfully");
-        } else {
-            console.warn("Backend update failed, but local data saved:", data.message);
-        }
-
       } catch (e) {
           console.error("Update failed", e);
-          // Note: We do NOT revert the user state here, so the user keeps their changes locally
-          Alert.alert("Note", "Profile saved locally, but server sync failed.");
       }
   };
 

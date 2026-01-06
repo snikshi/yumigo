@@ -10,11 +10,13 @@ import {
   ScrollView,
   Switch
 } from 'react-native';
+
+import { useWallet } from '../context/WalletContext';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useStripe } from '@stripe/stripe-react-native';
 import { useOrder } from '../context/OrderContext';
-import { useWallet } from '../context/WalletContext';
+
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const formatPrice = (price) => `₹${Number(price).toFixed(2)}`;
