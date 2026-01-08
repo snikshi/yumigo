@@ -4,23 +4,24 @@ import {
   TouchableOpacity, StatusBar, FlatList, ActivityIndicator, Dimensions 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native'; // Keep this if using hook, but props are better here
 import { useTheme } from '../context/ThemeContext'; 
 import { useAuth } from '../context/AuthContext';
-import { useAI } from '../context/AIContext'; // 👈 Import AI
+import { useAI } from '../context/AIContext'; 
 
 const { width } = Dimensions.get('window');
 
-export default function HomeScreen() {
+// 👇 UPDATED SIGNATURE: Accept 'route' to get params
+export default function HomeScreen({ navigation, route }) {
   const { user } = useAuth();
-  const { openChat } = useAI(); // 👈 Use AI Hook
-  const navigation = useNavigation();
+  const { openChat } = useAI(); 
   const [restaurants, setRestaurants] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-
-  // 🎨 Theme Hook
   const { colors, isDarkMode } = useTheme();
+
+  // 1. Check for Synced Ride Data (Eat-to-Earn Feature)
+  const { syncedRideId, rideDuration, dropLocation } = route?.params || {};
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -30,7 +31,6 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    // Replace with your actual IP if testing on device, or keep render URL
     fetch("https://yumigo-api.onrender.com/api/restaurant/list")
       .then((res) => res.json())
       .then((json) => {
@@ -40,16 +40,32 @@ export default function HomeScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  // 🟢 AI SEARCH HANDLER
   const handleSearch = () => {
     if (searchQuery.trim()) {
-        // Instead of a boring filter, we ask the AI!
         openChat(searchQuery); 
         setSearchQuery('');
     }
   };
 
-  // 1. Filter Chip
+  // 🟢 2. RENDER SYNC BANNER (Shows only if ride is active)
+  const renderSyncBanner = () => {
+    if (!syncedRideId) return null;
+    return (
+        <View style={styles.syncBanner}>
+            <View style={{flex: 1}}>
+                <Text style={styles.syncTitle}>🚗 Ride-Food Sync Active</Text>
+                <Text style={styles.syncSub}>
+                    Delivering to <Text style={{fontWeight:'bold'}}>{dropLocation || "Destination"}</Text> in ~{rideDuration} mins.
+                </Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.setParams({ syncedRideId: null })}>
+                <Ionicons name="close-circle" size={24} color="#fff" />
+            </TouchableOpacity>
+        </View>
+    );
+  };
+
+  // ... (FilterChip & PromoBanner Helper Components - Same as before)
   const FilterChip = ({ icon, label }) => (
     <TouchableOpacity style={[styles.chip, { backgroundColor: colors.card, borderColor: isDarkMode ? '#333' : '#eee' }]}>
         {icon && <Ionicons name={icon} size={16} color={colors.text} style={{marginRight: 5}} />}
@@ -57,7 +73,6 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
-  // 2. Banner Item
   const PromoBanner = ({ image, title, subtitle }) => (
     <View style={styles.bannerContainer}>
         <Image source={{ uri: image }} style={styles.bannerImage} />
@@ -79,7 +94,7 @@ export default function HomeScreen() {
         backgroundColor={colors.background} 
       />
 
-      {/* 🟢 1. ADVANCED HEADER */}
+      {/* HEADER */}
       <View style={[styles.header, { backgroundColor: colors.background }]}>
         <View style={{flex: 1}}>
             <View style={{flexDirection: 'row', alignItems: 'center'}}>
@@ -103,7 +118,10 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* 🟢 2. SMART SEARCH BAR (Triggers AI) */}
+      {/* 👇 3. INSERT SYNC BANNER HERE */}
+      {renderSyncBanner()}
+
+      {/* SEARCH BAR */}
       <View style={[styles.searchWrapper, { backgroundColor: colors.background }]}>
         <View style={[styles.searchContainer, { backgroundColor: isDarkMode ? '#1e1e1e' : '#f5f5f5' }]}>
             <Ionicons name="search" size={20} color="#888" />
@@ -113,10 +131,9 @@ export default function HomeScreen() {
                 style={[styles.searchInput, { color: colors.text }]}
                 value={searchQuery}
                 onChangeText={setSearchQuery} 
-                onSubmitEditing={handleSearch} // 👈 Enter triggers AI
+                onSubmitEditing={handleSearch} 
             />
             <TouchableOpacity onPress={handleSearch} style={styles.micBtn}>
-                {/* Visual cue that this is AI powered */}
                 <Text style={{fontSize:16}}>🤖</Text>
             </TouchableOpacity>
         </View>
@@ -124,7 +141,7 @@ export default function HomeScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         
-        {/* 🟢 3. FILTER CHIPS */}
+        {/* CHIPS */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 10, paddingLeft: 20 }}>
             <FilterChip icon="options-outline" label="Sort" />
             <FilterChip icon="flash-outline" label="Fast" />
@@ -134,13 +151,13 @@ export default function HomeScreen() {
             <View style={{width: 30}} />
         </ScrollView>
 
-        {/* 🟢 4. BANNERS */}
+        {/* BANNERS */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} pagingEnabled style={{ marginBottom: 20 }}>
             <PromoBanner image="https://cdn.pixabay.com/photo/2017/12/09/08/18/pizza-3007395_1280.jpg" title="50% OFF" subtitle="On First Order" />
             <PromoBanner image="https://cdn.pixabay.com/photo/2016/03/05/19/02/hamburger-1238246_1280.jpg" title="Burger Fest" subtitle="Starts @ ₹99" />
         </ScrollView>
 
-        {/* 🟢 5. CATEGORIES */}
+        {/* CATEGORIES */}
         <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>What's on your mind?</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -153,7 +170,7 @@ export default function HomeScreen() {
             </ScrollView>
         </View>
 
-        {/* 🟢 6. RESTAURANT LIST */}
+        {/* RESTAURANT LIST */}
         <Text style={[styles.sectionTitle, { margin: 20, color: colors.text }]}>
              {restaurants.length} Restaurants Delivering
         </Text>
@@ -198,6 +215,11 @@ const styles = StyleSheet.create({
   greetingSub: { color: '#888', fontSize: 12, marginTop: 2 },
   coinBadge: { backgroundColor: '#FFF8E1', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, marginRight: 10, borderWidth: 1, borderColor: '#FFD54F' },
   profilePic: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#eee', borderWidth: 1, borderColor: '#FF9900' },
+
+  // New Banner Style
+  syncBanner: { backgroundColor: '#4CAF50', margin: 15, padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 5 },
+  syncTitle: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  syncSub: { color: '#e8f5e9', fontSize: 12, marginTop: 4, maxWidth: 250 },
 
   searchWrapper: { paddingHorizontal: 15, paddingBottom: 10 },
   searchContainer: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 12 },

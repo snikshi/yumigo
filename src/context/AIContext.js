@@ -36,6 +36,16 @@ export const AIProvider = ({ children }) => {
         body: JSON.stringify({ message: text, userId: user?.id })
       });
       const data = await res.json();
+      
+      const text = await res.text(); // Read as text first
+console.log("SERVER RESPONSE:", text); // See what the HTML says!
+
+try {
+    const data = JSON.parse(text); // Try to parse manually
+    // ... proceed with data
+} catch (e) {
+    console.error("NOT JSON! likely 404 or 500 error");
+}
 
       // 3. Add AI Response
       const aiMsg = { 

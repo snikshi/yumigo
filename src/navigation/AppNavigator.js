@@ -25,6 +25,7 @@ import ProductDetailScreen from '../screens/ProductDetailScreen';
 import SupportScreen from '../screens/SupportScreen';
 import WalletScreen from '../screens/WalletScreen';
 import CouponsScreen from '../screens/CouponsScreen';
+import DeliveryScreen from '../screens/deliveryboy';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -38,10 +39,12 @@ function MainTabs() {
         tabBarIcon: ({ color, size }) => {
           let iconName;
           if (route.name === 'Home') iconName = 'home';
+          else if (route.name === 'Ride') iconName = 'car-sport';
           else if (route.name === 'Shop') iconName = 'pricetags';
           else if (route.name === 'Cart') iconName = 'cart';
           else if (route.name === 'Profile') iconName = 'person';
           else if (route.name === 'Seller') iconName = 'restaurant';
+          else if (route.name === 'Delivery') iconName = 'delivery';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#FF9900',
@@ -49,10 +52,12 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Ride" component={RideScreen} />
       <Tab.Screen name="Shop" component={ShoppingScreen} />
       <Tab.Screen name="Cart" component={CartScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
-      <Tab.Screen name="Seller" component={SellerScreen} />
+      <Tab.Screen name="Seller" component={SellerScreen} /> 
+       <Tab.Screen name="Delivery" component={DeliveryScreen} />
     </Tab.Navigator>
   );
 }
@@ -78,13 +83,13 @@ export default function AppNavigator() {
           <Stack.Screen name="History" component={OrderHistoryScreen} />
           <Stack.Screen name="TrackOrder" component={TrackOrderScreen} />
           <Stack.Screen name="Food" component={FoodScreen} />
-          <Stack.Screen name="Ride" component={RideScreen} />
           <Stack.Screen name="RideHistory" component={RideHistoryScreen} />
           <Stack.Screen name="YourRide" component={YourRideScreen} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen name="Support" component={SupportScreen} />
           <Stack.Screen name="Wallet" component={WalletScreen} />
           <Stack.Screen name="Coupons" component={CouponsScreen} />
+          <Stack.Screen name="Delivery" component={DeliveryScreen} />
         </Stack.Group>
       ) : (
         <Stack.Group>

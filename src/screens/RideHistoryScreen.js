@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, Polyline } from 'react-native-maps'; // 👈 1. IMPORT MAP
+import MapView, { Marker, Polyline } from 'react-native-maps'; 
 import { useWallet } from '../context/WalletContext'; 
-import RideFoodPrompt from '../components/RideFoodPrompt'; 
+import RideFoodPrompt from '../components/RideFoodPrompt'; // Ensure this file exists in components
 import * as Notifications from 'expo-notifications';
 
-// HYDERABAD COORDINATES (Default)
+// Default Coordinates (Hyderabad)
 const INITIAL_REGION = {
     latitude: 17.3850,
     longitude: 78.4867,
@@ -15,143 +15,145 @@ const INITIAL_REGION = {
 };
 
 export default function RideHistoryScreen({ route, navigation }) {
+  // 1. Get Params
   const { vehicle, dropLocation, rideId, rideEta } = route.params || {}; 
   const { payFromWallet } = useWallet(); 
-  const mapRef = useRef(null); // Ref to animate map
+  const mapRef = useRef(null);
 
   const [status, setStatus] = useState('Searching'); 
   const [driver, setDriver] = useState(null);
   const [hasPaid, setHasPaid] = useState(false); 
+  const [timeLeft, setTimeLeft] = useState(rideEta || 45); // Countdown state
   
-  // Driver Position State (Animated later)
+  // Driver Position State
   const [driverLoc, setDriverLoc] = useState({ latitude: 17.3850, longitude: 78.4867 });
 
-  // Simulate Ride Logic (Same as before)
- // Simulate Ride Logic
+  // 2. Simulate Ride Logic & Notifications
   useEffect(() => {
-    // 1. Driver Found
+    // A. Driver Found (3s)
     const timer1 = setTimeout(() => {
         setDriver({ name: 'Raju Bhai', rating: 4.8, plate: 'TS-09-AB-1234', phone: '9876543210' });
         setStatus('Arriving');
         
-        // 🔔 TRIGGER NOTIFICATION
         Notifications.scheduleNotificationAsync({
             content: {
                 title: "Driver Found! 🚖",
                 body: "Raju Bhai (TS-09-AB-1234) is arriving in 2 mins.",
                 sound: 'default',
             },
-            trigger: null, // Send immediately
+            trigger: null,
         });
-
     }, 3000);
 
-    // 2. Ride Starts
+    // B. Ride Starts (8s)
     const timer2 = setTimeout(() => {
         setStatus('On Trip');
-
-        // 🔔 TRIGGER NOTIFICATION
         Notifications.scheduleNotificationAsync({
             content: {
                 title: "Trip Started 🏁",
-                body: "You are on your way to the destination. Share your ride details for safety.",
+                body: "You are on your way. Hungry? Order food now to save time!",
             },
             trigger: null,
         });
-
     }, 8000);
 
-    // 3. Ride Completed
+    // C. Ride Completed (25s)
     const timer3 = setTimeout(() => {
         setStatus('Completed');
-        
-        // 🔔 TRIGGER NOTIFICATION
         Notifications.scheduleNotificationAsync({
             content: {
                 title: "You've Arrived! ✅",
-                body: `Total fare is ₹${vehicle?.price || '0'}. Payment deducted from Wallet.`,
+                body: `Total fare is ₹${vehicle?.price || '0'}. Payment deducted.`,
             },
             trigger: null,
         });
-
     }, 25000);
 
     return () => { clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3); };
   }, []);
 
-  // Handle Payment (Same as before)
+  // 3. Simulate Driver Movement & Timer
+  useEffect(() => {
+      if (status === 'Completed') return;
+
+      const interval = setInterval(() => {
+          // Move Driver
+          setDriverLoc(prev => ({
+              latitude: prev.latitude + 0.0005,
+              longitude: prev.longitude + 0.0005,
+          }));
+          
+          // Decrease Time
+          setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
+      }, 2000);
+
+      return () => clearInterval(interval);
+  }, [status]);
+
+  // 4. Auto-Payment on Completion
   useEffect(() => {
     if (status === 'Completed' && !hasPaid && vehicle) {
-        const success = payFromWallet(vehicle.price);
+        const success = payFromWallet(vehicle.price, `Ride to ${dropLocation || 'Dest'}`);
         if (success) {
             setHasPaid(true);
-            Alert.alert("Ride Completed", `You reached ${dropLocation}. ₹${vehicle.price} paid from Wallet. ✅`);
+            Alert.alert("Ride Completed", `You reached destination. ₹${vehicle.price} paid from Wallet. ✅`);
         } 
     }
   }, [status]);
 
+  // 5. Navigate to Home with Sync Data
   const handleFoodSync = () => {
-    // ✅ Correct - Go to Tabs first, then Home
-navigation.navigate('MainTabs', { 
-    screen: 'Home', 
-    params: { 
-        syncedRideId: rideId, 
-        rideDuration: (rideEta || 45) + 15 
-    }
-});
+    navigation.navigate('MainTabs', { 
+        screen: 'Home', // Name of the tab
+        params: { 
+            syncedRideId: rideId, 
+            rideDuration: timeLeft,
+            dropLocation: dropLocation 
+        }
+    });
   };
 
-  if (!vehicle) return <View style={styles.center}><Text>No ride details.</Text></View>;
+  if (!vehicle) return <View style={styles.center}><Text>No ride details found.</Text></View>;
 
   return (
     <SafeAreaView style={styles.container}>
       
-      {/* 👇 REAL MAP VIEW */}
+      {/* MAP */}
       <View style={styles.mapContainer}>
         <MapView
             ref={mapRef}
             style={styles.map}
             initialRegion={INITIAL_REGION}
         >
-            {/* Pickup Marker */}
             <Marker coordinate={{ latitude: 17.3850, longitude: 78.4867 }} title="Pickup" pinColor="green" />
-
-            {/* Drop Marker (Simulated offset) */}
             <Marker coordinate={{ latitude: 17.4200, longitude: 78.5000 }} title="Drop" pinColor="red" />
-
-            {/* Driver Marker (Car Icon) */}
+            
             {driver && (
                 <Marker coordinate={driverLoc} title="Driver">
                     <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3097/3097180.png' }} style={{width: 40, height: 40}} />
                 </Marker>
             )}
 
-            {/* Route Line */}
             <Polyline 
                 coordinates={[
-                    { latitude: 17.3850, longitude: 78.4867 }, // Pickup
-                    driverLoc, // Current Driver Pos
-                    { latitude: 17.4200, longitude: 78.5000 }  // Drop
+                    { latitude: 17.3850, longitude: 78.4867 },
+                    driverLoc,
+                    { latitude: 17.4200, longitude: 78.5000 }
                 ]}
                 strokeColor="#000" 
                 strokeWidth={3}
             />
         </MapView>
         
-        {/* Status Badge */}
+        {/* Top Status Pill */}
         <View style={styles.statusBadge}>
             <Text style={styles.statusText}>
                 {status === 'Searching' ? '🔍 Finding Driver...' :
-                 status === 'Arriving' ? '🚖 Driver Arriving (2 min)' :
-                 status === 'On Trip' ? '🛣️ On the way to Destination' :
+                 status === 'Arriving' ? '🚖 Driver Arriving' :
+                 status === 'On Trip' ? `🛣️ On Trip • ${timeLeft} min left` :
                  '✅ Ride Completed'}
             </Text>
         </View>
-
-        {/* Prompt */}
-        {status === 'On Trip' && (
-            <RideFoodPrompt rideEta={(rideEta || 45) + 10} onOrderPress={handleFoodSync} />
-        )}
 
         {/* Back Button */}
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('MainTabs')}>
@@ -159,11 +161,11 @@ navigation.navigate('MainTabs', {
         </TouchableOpacity>
       </View>
 
-      {/* DRIVER INFO CARD (Same as before) */}
+      {/* DRIVER CARD */}
       {driver ? (
         <View style={styles.driverCard}>
             <View style={styles.driverRow}>
-                <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3048/3048122.png' }} style={styles.driverIcon} />
+                <Image source={{ uri: 'https://randomuser.me/api/portraits/men/45.jpg' }} style={styles.driverIcon} />
                 <View style={{flex: 1}}>
                     <Text style={styles.driverName}>{driver.name} ⭐ {driver.rating}</Text>
                     <Text style={styles.plate}>{driver.plate}</Text>
@@ -173,20 +175,35 @@ navigation.navigate('MainTabs', {
                     <Ionicons name="call" size={22} color="green" />
                 </View>
             </View>
+            
             <View style={styles.divider} />
+            
             {status === 'Completed' ? (
                 <View style={{alignItems: 'center'}}>
                     <Text style={{color: 'green', fontWeight: 'bold', fontSize: 18}}>Paid ₹{vehicle.price} ✅</Text>
                 </View>
             ) : (
-                <Text style={styles.otp}>OTP: 4589</Text>
+                <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}>
+                    <Text style={styles.otp}>OTP: 4589</Text>
+                    {/* Prompt only shows during trip */}
+                    {status === 'On Trip' && (
+                         <TouchableOpacity style={styles.foodBtn} onPress={handleFoodSync}>
+                             <Text style={{color:'#fff', fontWeight:'bold', fontSize:12}}>Order Food 🍔</Text>
+                         </TouchableOpacity>
+                    )}
+                </View>
             )}
         </View>
       ) : (
         <View style={styles.loadingCard}>
             <ActivityIndicator size="large" color="#000" />
-            <Text style={{marginTop: 10, fontWeight: 'bold'}}>Connecting to nearby drivers...</Text>
+            <Text style={{marginTop: 10, fontWeight: 'bold'}}>Connecting to drivers...</Text>
         </View>
+      )}
+
+      {/* FLOATING PROMPT (If you prefer it floating outside the card) */}
+      {status === 'On Trip' && (
+          <RideFoodPrompt rideEta={timeLeft} onOrderPress={handleFoodSync} />
       )}
 
     </SafeAreaView>
@@ -197,11 +214,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   mapContainer: { flex: 1, backgroundColor: '#eee', position: 'relative' },
-  map: { width: '100%', height: '100%' }, // 👈 IMPORTANT FOR MAP TO SHOW
+  map: { width: '100%', height: '100%' },
   backBtn: { position: 'absolute', top: 50, left: 20, backgroundColor: '#fff', padding: 8, borderRadius: 20, elevation: 5 },
   statusBadge: { position: 'absolute', top: 50, alignSelf: 'center', backgroundColor: '#000', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, elevation: 5 },
   statusText: { color: '#fff', fontWeight: 'bold' },
-  driverCard: { backgroundColor: '#fff', padding: 20, borderTopLeftRadius: 25, borderTopRightRadius: 25, elevation: 20 },
+  driverCard: { backgroundColor: '#fff', padding: 20, borderTopLeftRadius: 25, borderTopRightRadius: 25, elevation: 20, paddingBottom: 40 },
   loadingCard: { backgroundColor: '#fff', padding: 40, borderTopLeftRadius: 25, borderTopRightRadius: 25, alignItems: 'center', height: 200 },
   driverRow: { flexDirection: 'row', alignItems: 'center' },
   driverIcon: { width: 50, height: 50, borderRadius: 25, marginRight: 15, backgroundColor: '#eee' },
@@ -210,5 +227,6 @@ const styles = StyleSheet.create({
   vehicleName: { color: '#888', fontSize: 12 },
   callBtn: { padding: 10, backgroundColor: '#e8f5e9', borderRadius: 25 },
   divider: { height: 1, backgroundColor: '#eee', marginVertical: 15 },
-  otp: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', letterSpacing: 5 },
+  otp: { fontSize: 20, fontWeight: 'bold', letterSpacing: 2 },
+  foodBtn: { backgroundColor: '#FF9900', paddingVertical:8, paddingHorizontal:15, borderRadius:20 }
 });
